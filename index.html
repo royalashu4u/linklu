@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>YouTube Smart Open Test</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial; padding: 2rem; }
+    button { padding: 12px 18px; border-radius: 8px; border: none; background:#ff0000; color:#fff; font-weight:600; cursor:pointer; }
+    p.note { color:#666; font-size:0.9rem; margin-top:1rem; }
+    a { display:block; margin-top:1rem; }
+  </style>
+</head>
+<body>
+  <h2>Open YouTube App (test)</h2>
+
+  <!-- Click this on a mobile device -->
+  <button id="openBtn">Open in YouTube App</button>
+
+  <p class="note">
+    If the app doesn't open, you'll be redirected to the web fallback after ~1.5s.
+    Test this on a real device (iPhone / Android phone) with the YouTube app installed.
+  </p>
+
+  <!-- visible fallback links for manual testing -->
+  <a id="web" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank">Web URL (fallback)</a>
+  <a id="ios" href="youtube://watch?v=dQw4w9WgXcQ">iOS scheme (youtube://...)</a>
+  <a id="androidScheme" href="vnd.youtube:dQw4w9WgXcQ">Android scheme (vnd.youtube:...)</a>
+  <a id="androidIntent" href="intent://watch?v=dQw4w9WgXcQ#Intent;package=com.google.android.youtube;scheme=https;end">Android Intent (intent://...)</a>
+
+<script>
+(function(){
+  const videoId = "dQw4w9WgXcQ";
+  const webUrl = "https://www.youtube.com/watch?v=" + videoId;
+  const iosUrl = "youtube://watch?v=" + videoId;               // works (usually) on iOS if app installed
+  const androidScheme = "vnd.youtube:" + videoId;             // sometimes used on Android
+  // Recommended Android "intent:" URL for Chrome on Android
+  const androidIntent = "intent://watch?v=" + videoId + "#Intent;package=com.google.android.youtube;scheme=https;end";
+
+  function isAndroid() {
+    return /Android/i.test(navigator.userAgent);
+  }
+  function isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  document.getElementById("openBtn").addEventListener("click", function () {
+    // Try to open app depending on device, then fallback
+    if (isIOS()) {
+      // iOS: set location to app scheme
+      window.location = iosUrl;
+      // iOS Safari will open the app if installed. Otherwise, after delay we redirect to web fallback.
+      setTimeout(() => { window.location = webUrl; }, 1400);
+      return;
+    }
+
+    if (isAndroid()) {
+      // Android Chrome: try intent first (most reliable)
+      // Some browsers may not support intent:, so also try vnd.youtube fallback quickly.
+      // We try intent; if it fails, fallback to web after timeout.
+      window.location = androidIntent;
+
+      // in case browser ignores intent:, try the scheme after a short delay (optional)
+      setTimeout(() => {
+        // If still on this page, try the scheme (may also fail) then fallback
+        window.location = androidScheme;
+      }, 700);
+
+      // final fallback to web
+      setTimeout(() => { window.location = webUrl; }, 1800);
+      return;
+    }
+
+    // Desktop or unknown: just open web
+    window.open(webUrl, "_blank");
+  });
+})();
+</script>
+</body>
+</html>
