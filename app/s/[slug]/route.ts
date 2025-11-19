@@ -61,9 +61,13 @@ export async function GET(
 
     // Smart redirect logic - try deep links first, then fallback to web
     let redirectUrl = link.web_fallback
+    
+    // Check if this is a LinkedIn URL - LinkedIn needs client-side deep link handling
+    const isLinkedIn = link.web_fallback?.toLowerCase().includes('linkedin.com')
 
     // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
-    if (deviceInfo.isSocialApp) {
+    // Also use smart landing page for LinkedIn on mobile to properly handle deep links
+    if (deviceInfo.isSocialApp || (isLinkedIn && (deviceInfo.device === 'ios' || deviceInfo.device === 'android'))) {
       // Redirect to smart landing page that handles social app deep links
       const smartPageUrl = new URL(`/smart/${slug}`, req.url)
       // Preserve UTM parameters

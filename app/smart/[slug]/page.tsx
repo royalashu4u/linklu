@@ -34,16 +34,30 @@ export default function SmartRedirectPage() {
     if (isIOS) {
       // Try iOS deep link first
       if (linkData.ios_url) {
-        // Try multiple methods for social apps
-        tryUniversalLink(linkData.ios_url)
-        setTimeout(() => {
-          // Fallback to App Store or web
-          if (linkData.ios_appstore_url) {
-            window.location.href = linkData.ios_appstore_url
-          } else {
-            window.location.href = linkData.web_fallback
-          }
-        }, 500)
+        // For LinkedIn, Universal Links (https://) work better
+        if (linkData.ios_url.startsWith('https://')) {
+          // LinkedIn Universal Link - will open app if installed
+          window.location.href = linkData.ios_url
+          // Fallback after delay if app doesn't open
+          setTimeout(() => {
+            if (linkData.ios_appstore_url) {
+              window.location.href = linkData.ios_appstore_url
+            } else {
+              window.location.href = linkData.web_fallback
+            }
+          }, 2000)
+        } else {
+          // Try multiple methods for other apps
+          tryUniversalLink(linkData.ios_url)
+          setTimeout(() => {
+            // Fallback to App Store or web
+            if (linkData.ios_appstore_url) {
+              window.location.href = linkData.ios_appstore_url
+            } else {
+              window.location.href = linkData.web_fallback
+            }
+          }, 500)
+        }
       } else if (linkData.ios_appstore_url) {
         window.location.href = linkData.ios_appstore_url
       } else {
@@ -52,12 +66,12 @@ export default function SmartRedirectPage() {
     } else if (isAndroid) {
       // Try Android deep link first
       if (linkData.android_url) {
-        // Try intent URL format
+        // Try deep link with multiple methods
         tryDeepLink(linkData.android_url)
         setTimeout(() => {
           // Fallback to web
           window.location.href = linkData.web_fallback
-        }, 500)
+        }, 1000)
       } else {
         window.location.href = linkData.web_fallback
       }
@@ -84,6 +98,12 @@ export default function SmartRedirectPage() {
   }, [linkData, loading, attemptRedirect])
 
   const tryUniversalLink = (url: string) => {
+    // For LinkedIn Universal Links (https://), they work directly
+    if (url.startsWith('https://')) {
+      window.location.href = url
+      return
+    }
+    
     // Method 1: Direct navigation
     window.location.href = url
     
@@ -100,6 +120,20 @@ export default function SmartRedirectPage() {
   }
 
   const tryDeepLink = (url: string) => {
+    // For LinkedIn on Android, use linkedin:// scheme
+    if (url.startsWith('linkedin://')) {
+      // Try direct navigation first
+      window.location.href = url
+      
+      // Also try with intent URL format for better compatibility
+      const path = url.replace('linkedin://', '')
+      const intentUrl = `intent://${path}#Intent;scheme=linkedin;package=com.linkedin.android;end`
+      setTimeout(() => {
+        window.location.href = intentUrl
+      }, 300)
+      return
+    }
+    
     // For Android, try intent:// format if needed
     if (url.startsWith('intent://')) {
       window.location.href = url
@@ -109,7 +143,9 @@ export default function SmartRedirectPage() {
       
       // Also try as intent if it's a custom scheme
       if (url.includes('://')) {
-        const intentUrl = `intent://${url.split('://')[1]}#Intent;scheme=${url.split('://')[0]};end`
+        const scheme = url.split('://')[0]
+        const path = url.split('://')[1]
+        const intentUrl = `intent://${path}#Intent;scheme=${scheme};end`
         setTimeout(() => {
           window.location.href = intentUrl
         }, 200)
