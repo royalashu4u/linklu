@@ -61,6 +61,9 @@ export async function GET(
 
     // Smart redirect logic with fallback chain
     let redirectUrl = link.web_fallback
+    
+    // Check if this is a LinkedIn URL - LinkedIn deep links are unreliable, use web directly
+    const isLinkedIn = link.web_fallback?.toLowerCase().includes('linkedin.com')
 
     // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
     if (deviceInfo.isSocialApp) {
@@ -73,8 +76,12 @@ export async function GET(
       return NextResponse.redirect(smartPageUrl)
     }
 
+    // For LinkedIn, always use web URL (deep links are unreliable)
+    if (isLinkedIn) {
+      redirectUrl = link.web_fallback
+    }
     // Device-specific redirect logic
-    if (deviceInfo.device === 'ios') {
+    else if (deviceInfo.device === 'ios') {
       // iOS: Try deep link first, then App Store, then web
       if (link.ios_url) {
         redirectUrl = link.ios_url

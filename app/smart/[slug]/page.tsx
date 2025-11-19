@@ -30,8 +30,17 @@ export default function SmartRedirectPage() {
     const userAgent = navigator.userAgent.toLowerCase()
     const isIOS = /iphone|ipad|ipod/.test(userAgent)
     const isAndroid = /android/.test(userAgent)
+    
+    // Check if this is a LinkedIn URL - LinkedIn deep links are unreliable, use web directly
+    const isLinkedIn = linkData.web_fallback?.toLowerCase().includes('linkedin.com')
 
     let redirectUrl = linkData.web_fallback
+
+    // For LinkedIn, always use web URL (deep links are unreliable)
+    if (isLinkedIn) {
+      window.location.href = linkData.web_fallback
+      return
+    }
 
     if (isIOS) {
       // Try iOS deep link first
