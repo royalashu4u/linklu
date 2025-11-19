@@ -230,44 +230,69 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         linkedinPath = parts[1] || '/'
       }
       
-      // LinkedIn deep link formats that work better
-      // For profiles: linkedin://profile/view?id={id} or linkedin://in/{username}
-      // For posts: linkedin://feed/update/{activityId}
+      // LinkedIn deep link formats
+      // For profiles: linkedin://in/{username} or linkedin://profile/view?id={id}
+      // For posts: linkedin://feed/update/{activityId} or linkedin://feed/update/urn:li:activity:{id}
       // For companies: linkedin://company/{companyId}
+      // For jobs: linkedin://job/{jobId}
       
-      // Try to extract activity ID from post URLs (format: activity-{id})
-      const activityMatch = url.match(/activity-(\d+)/)
-      const activityId = activityMatch ? activityMatch[1] : null
+      // Try to extract activity ID from post URLs (multiple formats)
+      // Format 1: /feed/update/urn:li:activity:1234567890
+      // Format 2: /feed/update/1234567890
+      // Format 3: activity-1234567890
+      const activityUrnMatch = url.match(/\/feed\/update\/urn:li:activity:(\d+)/)
+      const activityIdMatch = url.match(/\/feed\/update\/(\d+)/)
+      const activityShortMatch = url.match(/activity-(\d+)/)
+      const activityId = activityUrnMatch ? activityUrnMatch[1] : 
+                        activityIdMatch ? activityIdMatch[1] : 
+                        activityShortMatch ? activityShortMatch[1] : null
       
       // Try to extract username from profile URLs
-      const profileMatch = url.match(/linkedin\.com\/in\/([^\/\?]+)/)
+      const profileMatch = url.match(/linkedin\.com\/in\/([^\/\?&#]+)/)
       const username = profileMatch ? profileMatch[1] : null
       
-      // Try to extract company name
-      const companyMatch = url.match(/linkedin\.com\/company\/([^\/\?]+)/)
+      // Try to extract company name/ID
+      const companyMatch = url.match(/linkedin\.com\/company\/([^\/\?&#]+)/)
       const companyName = companyMatch ? companyMatch[1] : null
       
-      // LinkedIn uses https:// scheme for Universal Links on iOS
-      // For Android, use linkedin:// scheme
+      // Try to extract job ID
+      const jobMatch = url.match(/linkedin\.com\/jobs\/view\/(\d+)/)
+      const jobId = jobMatch ? jobMatch[1] : null
+      
+      // LinkedIn uses https:// scheme for Universal Links on iOS (works best)
+      // For Android, use linkedin:// scheme with intent:// fallback
       let iosDeepLink: string
       let androidDeepLink: string
       
       if (activityId) {
-        // For posts, use the activity ID
-        iosDeepLink = `https://www.linkedin.com/feed/update/${activityId}`
-        androidDeepLink = `linkedin://feed/update/${activityId}`
+        // For posts - use the activity ID
+        // iOS: Universal Link format
+        iosDeepLink = `https://www.linkedin.com/feed/update/urn:li:activity:${activityId}`
+        // Android: linkedin:// scheme
+        androidDeepLink = `linkedin://feed/update/urn:li:activity:${activityId}`
       } else if (username) {
-        // For profiles, use the username
+        // For profiles - use the username
         iosDeepLink = `https://www.linkedin.com/in/${username}`
         androidDeepLink = `linkedin://in/${username}`
       } else if (companyName) {
         // For companies
         iosDeepLink = `https://www.linkedin.com/company/${companyName}`
         androidDeepLink = `linkedin://company/${companyName}`
+      } else if (jobId) {
+        // For jobs
+        iosDeepLink = `https://www.linkedin.com/jobs/view/${jobId}`
+        androidDeepLink = `linkedin://job/${jobId}`
       } else {
-        // Fallback: use the full URL (LinkedIn supports Universal Links)
-        iosDeepLink = url
-        androidDeepLink = `linkedin://${linkedinPath.replace(/^\//, '')}`
+        // Fallback: use the full URL (LinkedIn supports Universal Links on iOS)
+        // Clean up the URL to ensure it's in the right format
+        let cleanUrl = url
+        if (!url.startsWith('http')) {
+          cleanUrl = `https://${url}`
+        }
+        iosDeepLink = cleanUrl
+        // For Android, try to construct a deep link from the path
+        const path = linkedinPath.replace(/^\//, '').replace(/\?.*$/, '')
+        androidDeepLink = path ? `linkedin://${path}` : `linkedin://`
       }
       
       return {

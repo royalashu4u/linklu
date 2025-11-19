@@ -65,9 +65,29 @@ export default function SmartRedirectPage() {
         // Try iOS deep link first
         if (linkData.ios_url) {
           // For Universal Links (https://), they work directly
+          // LinkedIn uses Universal Links which work best on iOS
           if (linkData.ios_url.startsWith('https://')) {
             // Universal Link - will open app if installed
+            // For LinkedIn, this is the best method
             window.location.href = linkData.ios_url
+            
+            // Also try hidden iframe as backup (for some browsers)
+            try {
+              const iframe = document.createElement('iframe')
+              iframe.style.display = 'none'
+              iframe.style.width = '0'
+              iframe.style.height = '0'
+              iframe.src = linkData.ios_url
+              document.body.appendChild(iframe)
+              setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe)
+                }
+              }, 2000)
+            } catch (e) {
+              // Ignore iframe errors
+            }
+            
             // Fallback after delay if app doesn't open
             setTimeout(() => {
               if (linkData.ios_appstore_url) {
@@ -75,7 +95,7 @@ export default function SmartRedirectPage() {
               } else {
                 window.location.href = linkData.web_fallback
               }
-            }, 2500)
+            }, 3000)
           } else {
             // For custom schemes (youtube://, instagram://, etc.)
             tryUniversalLink(linkData.ios_url)
