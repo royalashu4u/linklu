@@ -248,8 +248,6 @@ export default function SmartRedirectPage() {
           
           <a
             href={linkData.web_fallback}
-            target="_blank"
-            rel="noopener noreferrer"
             className="block text-sm text-indigo-600 hover:text-indigo-700"
           >
             Continue to website instead
@@ -259,8 +257,6 @@ export default function SmartRedirectPage() {
           {linkData.web_fallback && (
             <a
               href={linkData.web_fallback}
-              target="_blank"
-              rel="noopener noreferrer"
               className="block mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
             >
               Open in Browser
