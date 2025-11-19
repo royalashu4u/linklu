@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { generateYouTubeDeepLinks, isYouTubeUrl } from '@/lib/youtube-deeplink'
+import { generateDeepLinks, detectPlatform } from '@/lib/url-parser'
 
 interface SmartLink {
   id: string
@@ -32,6 +32,7 @@ export default function Dashboard() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [baseUrl, setBaseUrl] = useState('')
+  const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null)
 
   useEffect(() => {
     // Get base URL for displaying links
@@ -118,40 +119,48 @@ export default function Dashboard() {
   const handleWebFallbackChange = (value: string) => {
     setFormData({ ...formData, web_fallback: value })
     
-    // Auto-detect YouTube URL and generate deep links
-    if (isYouTubeUrl(value)) {
-      const deepLinks = generateYouTubeDeepLinks(value)
-      if (deepLinks) {
-        setFormData({
-          ...formData,
-          web_fallback: value,
-          ios_url: deepLinks.ios_url,
-          android_url: deepLinks.android_url,
-          ios_appstore_url: deepLinks.ios_appstore_url,
-          android_playstore_url: deepLinks.android_playstore_url,
-        })
-      }
-    }
-  }
-
-  const fillFromYouTubeUrl = () => {
-    const url = prompt('Enter YouTube URL:')
-    if (url && isYouTubeUrl(url)) {
-      const deepLinks = generateYouTubeDeepLinks(url)
+    // Auto-detect platform and generate deep links
+    if (value && value.startsWith('http')) {
+      const platform = detectPlatform(value)
+      setDetectedPlatform(platform)
+      
+      const deepLinks = generateDeepLinks(value)
       if (deepLinks) {
         setFormData({
           ...formData,
           web_fallback: deepLinks.web_fallback,
-          ios_url: deepLinks.ios_url,
-          android_url: deepLinks.android_url,
-          ios_appstore_url: deepLinks.ios_appstore_url,
-          android_playstore_url: deepLinks.android_playstore_url,
+          ios_url: deepLinks.ios_url || '',
+          android_url: deepLinks.android_url || '',
+          ios_appstore_url: deepLinks.ios_appstore_url || '',
+          android_playstore_url: deepLinks.android_playstore_url || '',
+          title: deepLinks.title || formData.title,
         })
+      }
+    } else {
+      setDetectedPlatform(null)
+    }
+  }
+
+  const fillFromUrl = () => {
+    const url = prompt('Enter any URL (YouTube, Instagram, Twitter, TikTok, Spotify, etc.):')
+    if (url && url.startsWith('http')) {
+      const deepLinks = generateDeepLinks(url)
+      if (deepLinks) {
+        setFormData({
+          ...formData,
+          web_fallback: deepLinks.web_fallback,
+          ios_url: deepLinks.ios_url || '',
+          android_url: deepLinks.android_url || '',
+          ios_appstore_url: deepLinks.ios_appstore_url || '',
+          android_playstore_url: deepLinks.android_playstore_url || '',
+          title: deepLinks.title || '',
+        })
+        setDetectedPlatform(deepLinks.platform)
       } else {
-        alert('Invalid YouTube URL')
+        alert('Could not parse URL')
       }
     } else if (url) {
-      alert('Please enter a valid YouTube URL')
+      alert('Please enter a valid URL starting with http:// or https://')
     }
   }
 
@@ -301,27 +310,27 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-sm font-medium text-gray-700">
-                    Web Fallback URL *
+                    URL (Auto-detect) *
                   </label>
                   <button
                     type="button"
-                    onClick={fillFromYouTubeUrl}
+                    onClick={fillFromUrl}
                     className="text-xs text-indigo-600 hover:text-indigo-700"
                   >
-                    Quick Fill from YouTube
+                    Quick Fill
                   </button>
                 </div>
                 <input
                   type="url"
                   value={formData.web_fallback}
                   onChange={(e) => handleWebFallbackChange(e.target.value)}
-                  placeholder="https://example.com or https://youtube.com/watch?v=..."
+                  placeholder="Enter any URL: YouTube, Instagram, Twitter, TikTok, Spotify, etc."
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
-                {isYouTubeUrl(formData.web_fallback) && (
+                {detectedPlatform && (
                   <p className="text-xs text-green-600 mt-1">
-                    ✓ YouTube URL detected! Deep links auto-filled.
+                    ✓ {detectedPlatform.charAt(0).toUpperCase() + detectedPlatform.slice(1)} detected! Deep links auto-filled.
                   </p>
                 )}
               </div>
