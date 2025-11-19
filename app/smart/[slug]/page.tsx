@@ -61,9 +61,19 @@ export default function SmartRedirectPage() {
         return
       }
 
+      // Check if this is a LinkedIn link using the mobile app redirect page
+      const isLinkedInMobileApp = linkData.android_url?.includes('linkedinmobileapp.com') || 
+                                  linkData.ios_url?.includes('linkedinmobileapp.com')
+
       if (isIOS) {
         // Try iOS deep link first
         if (linkData.ios_url) {
+          // For LinkedIn mobile app page, redirect directly (it handles device detection)
+          if (linkData.ios_url.includes('linkedinmobileapp.com')) {
+            window.location.href = linkData.ios_url
+            return
+          }
+          
           // For Universal Links (https://), they work directly
           // LinkedIn uses Universal Links which work best on iOS
           if (linkData.ios_url.startsWith('https://')) {
@@ -117,6 +127,12 @@ export default function SmartRedirectPage() {
       } else if (isAndroid) {
         // Try Android deep link first
         if (linkData.android_url) {
+          // For LinkedIn mobile app page, redirect directly (it handles device detection and deep linking)
+          if (linkData.android_url.includes('linkedinmobileapp.com')) {
+            window.location.href = linkData.android_url
+            return
+          }
+          
           // Try deep link with multiple methods
           tryDeepLink(linkData.android_url)
           setTimeout(() => {

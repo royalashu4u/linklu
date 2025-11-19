@@ -240,9 +240,15 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         linkedinPath = parts[1] || '/'
       }
       
-      // LinkedIn uses voyager:// scheme (not linkedin://)
-      // For iOS, Universal Links (https://) work best
-      // For Android, use voyager:// scheme
+      // LinkedIn's official mobile app redirect page: linkedinmobileapp.com
+      // This page automatically detects device and redirects to app or app store
+      // We'll use this as the deep link URL, and it will handle the rest
+      const mobileAppUrl = 'https://www.linkedinmobileapp.com/?appType=FLAGSHIP&trk=appupsell-mweb-feed-non-blocking-upsell'
+      
+      // For iOS, we can also try Universal Links first, then fallback to mobile app page
+      // For Android, use the mobile app page which handles device detection
+      let iosDeepLink: string
+      let androidDeepLink: string
       
       // Try to extract activity ID from post URLs (multiple formats)
       const activityUrnMatch = url.match(/\/feed\/update\/urn:li:activity:(\d+)/)
@@ -264,38 +270,32 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const jobMatch = url.match(/linkedin\.com\/jobs\/view\/(\d+)/)
       const jobId = jobMatch ? jobMatch[1] : null
       
-      // LinkedIn uses https:// scheme for Universal Links on iOS (works best)
-      // For Android, use voyager:// scheme (LinkedIn's official scheme)
-      let iosDeepLink: string
-      let androidDeepLink: string
+      // Build the mobile app URL with the original LinkedIn URL as a parameter
+      // LinkedIn's mobile app page can then redirect to the specific content
+      const encodedUrl = encodeURIComponent(url)
+      const mobileAppUrlWithTarget = `${mobileAppUrl}&targetUrl=${encodedUrl}`
       
+      // For iOS, try Universal Links first (they work better), then mobile app page
       if (activityId) {
-        // For posts - use the activity ID
         iosDeepLink = `https://www.linkedin.com/feed/update/urn:li:activity:${activityId}`
-        androidDeepLink = `voyager://feed/update/urn:li:activity:${activityId}`
       } else if (username) {
-        // For profiles - use the username
         iosDeepLink = `https://www.linkedin.com/in/${username}`
-        androidDeepLink = `voyager://in/${username}`
       } else if (companyName) {
-        // For companies
         iosDeepLink = `https://www.linkedin.com/company/${companyName}`
-        androidDeepLink = `voyager://company/${companyName}`
       } else if (jobId) {
-        // For jobs
         iosDeepLink = `https://www.linkedin.com/jobs/view/${jobId}`
-        androidDeepLink = `voyager://job/${jobId}`
       } else {
-        // Fallback: use the full URL (LinkedIn supports Universal Links on iOS)
+        // Use Universal Link if we have the full URL
         let cleanUrl = url
         if (!url.startsWith('http')) {
           cleanUrl = `https://${url}`
         }
         iosDeepLink = cleanUrl
-        // For Android, use voyager:// with path
-        const path = linkedinPath.replace(/^\//, '').replace(/\?.*$/, '')
-        androidDeepLink = path ? `voyager://${path}` : `voyager://`
       }
+      
+      // For Android, use LinkedIn's mobile app redirect page
+      // This page will detect Android and redirect appropriately
+      androidDeepLink = mobileAppUrlWithTarget
       
       return {
         platform: 'linkedin',
