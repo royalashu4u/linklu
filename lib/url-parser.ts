@@ -144,7 +144,8 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       return {
         platform: 'youtube',
         platformName: 'YouTube',
-        ios_url: `vnd.youtube://watch?v=${videoId}`,
+        // iOS uses youtube:// scheme, Android uses vnd.youtube://
+        ios_url: `youtube://watch?v=${videoId}`,
         android_url: `vnd.youtube://watch?v=${videoId}`,
         ios_appstore_url: 'https://apps.apple.com/app/youtube/id544007664',
         android_playstore_url: 'https://play.google.com/store/apps/details?id=com.google.android.youtube',

@@ -77,8 +77,9 @@ export default function SmartRedirectPage() {
               }
             }, 2500)
           } else {
-            // For custom schemes (vnd.youtube://, instagram://, etc.)
+            // For custom schemes (youtube://, instagram://, etc.)
             tryUniversalLink(linkData.ios_url)
+            // Give more time for app to open before falling back
             setTimeout(() => {
               // Fallback to App Store or web
               if (linkData.ios_appstore_url) {
@@ -86,7 +87,7 @@ export default function SmartRedirectPage() {
               } else {
                 window.location.href = linkData.web_fallback
               }
-            }, 1500)
+            }, 2000)
           }
         } else if (linkData.ios_appstore_url) {
           window.location.href = linkData.ios_appstore_url
@@ -121,6 +122,10 @@ export default function SmartRedirectPage() {
   useEffect(() => {
     if (!linkData || loading) return
 
+    // Try immediate redirect on page load (for better app opening)
+    attemptRedirect()
+
+    // Also set up countdown as fallback
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -161,7 +166,7 @@ export default function SmartRedirectPage() {
   const tryDeepLink = (url: string) => {
     // For YouTube on Android
     if (url.startsWith('vnd.youtube://')) {
-      // Try direct navigation
+      // Try direct navigation first
       window.location.href = url
       
       // Also try intent URL format for better compatibility
@@ -169,7 +174,13 @@ export default function SmartRedirectPage() {
       const intentUrl = `intent://${path}#Intent;scheme=vnd.youtube;package=com.google.android.youtube;end`
       setTimeout(() => {
         window.location.href = intentUrl
-      }, 300)
+      }, 500)
+      return
+    }
+    
+    // For YouTube on iOS (youtube:// scheme)
+    if (url.startsWith('youtube://')) {
+      window.location.href = url
       return
     }
     
