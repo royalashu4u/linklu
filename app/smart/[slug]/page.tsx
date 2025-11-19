@@ -64,9 +64,9 @@ export default function SmartRedirectPage() {
       if (isIOS) {
         // Try iOS deep link first
         if (linkData.ios_url) {
-          // For LinkedIn, Universal Links (https://) work better
+          // For Universal Links (https://), they work directly
           if (linkData.ios_url.startsWith('https://')) {
-            // LinkedIn Universal Link - will open app if installed
+            // Universal Link - will open app if installed
             window.location.href = linkData.ios_url
             // Fallback after delay if app doesn't open
             setTimeout(() => {
@@ -75,9 +75,9 @@ export default function SmartRedirectPage() {
               } else {
                 window.location.href = linkData.web_fallback
               }
-            }, 2000)
+            }, 2500)
           } else {
-            // Try multiple methods for other apps
+            // For custom schemes (vnd.youtube://, instagram://, etc.)
             tryUniversalLink(linkData.ios_url)
             setTimeout(() => {
               // Fallback to App Store or web
@@ -86,7 +86,7 @@ export default function SmartRedirectPage() {
               } else {
                 window.location.href = linkData.web_fallback
               }
-            }, 500)
+            }, 1500)
           }
         } else if (linkData.ios_appstore_url) {
           window.location.href = linkData.ios_appstore_url
@@ -101,7 +101,7 @@ export default function SmartRedirectPage() {
           setTimeout(() => {
             // Fallback to web
             window.location.href = linkData.web_fallback
-          }, 1000)
+          }, 2000)
         } else {
           window.location.href = linkData.web_fallback
         }
