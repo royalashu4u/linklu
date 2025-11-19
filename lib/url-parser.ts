@@ -188,11 +188,54 @@ export function generateDeepLinks(url: string): ParsedLink | null {
     }
 
     case 'linkedin': {
+      // Extract LinkedIn path from URL
+      let linkedinPath = url
+      try {
+        const urlObj = new URL(url)
+        linkedinPath = urlObj.pathname + urlObj.search
+      } catch {
+        // If URL parsing fails, try simple split
+        const parts = url.split('linkedin.com')
+        linkedinPath = parts[1] || '/'
+      }
+      
+      // LinkedIn deep link format
+      // For posts: linkedin://feed/update/{activityId}
+      // For profiles: linkedin://profile/{profileId} or linkedin://in/{username}
+      // For companies: linkedin://company/{companyId}
+      
+      // Try to extract activity ID from post URLs
+      const activityMatch = url.match(/activity-(\d+)/)
+      const activityId = activityMatch ? activityMatch[1] : null
+      
+      // Try to extract username from profile URLs
+      const profileMatch = url.match(/linkedin\.com\/in\/([^\/\?]+)/)
+      const username = profileMatch ? profileMatch[1] : null
+      
+      // Try to extract company name
+      const companyMatch = url.match(/linkedin\.com\/company\/([^\/\?]+)/)
+      const companyName = companyMatch ? companyMatch[1] : null
+      
+      let iosDeepLink = `linkedin://${linkedinPath}`
+      let androidDeepLink = `linkedin://${linkedinPath}`
+      
+      // Use more specific deep links if we can extract IDs
+      if (activityId) {
+        iosDeepLink = `linkedin://feed/update/${activityId}`
+        androidDeepLink = `linkedin://feed/update/${activityId}`
+      } else if (username) {
+        iosDeepLink = `linkedin://in/${username}`
+        androidDeepLink = `linkedin://in/${username}`
+      } else if (companyName) {
+        iosDeepLink = `linkedin://company/${companyName}`
+        androidDeepLink = `linkedin://company/${companyName}`
+      }
+      
       return {
         platform: 'linkedin',
         platformName: 'LinkedIn',
-        ios_url: `linkedin://${url.split('linkedin.com')[1]}`,
-        android_url: `linkedin://${url.split('linkedin.com')[1]}`,
+        ios_url: iosDeepLink,
+        android_url: androidDeepLink,
         ios_appstore_url: 'https://apps.apple.com/app/linkedin/id288429040',
         android_playstore_url: 'https://play.google.com/store/apps/details?id=com.linkedin.android',
         web_fallback: url,
