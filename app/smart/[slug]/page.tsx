@@ -9,6 +9,7 @@ export default function SmartRedirectPage() {
   const [countdown, setCountdown] = useState(3)
   const [linkData, setLinkData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [openingInChrome, setOpeningInChrome] = useState(false)
 
   useEffect(() => {
     // Fetch link data with error handling for Instagram browser
