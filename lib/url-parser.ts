@@ -231,21 +231,44 @@ export function generateDeepLinks(url: string): ParsedLink | null {
     case 'linkedin': {
       // Extract LinkedIn path from URL
       let linkedinPath = ''
+      let linkedinQuery = ''
       try {
         const urlObj = new URL(url)
-        linkedinPath = urlObj.pathname + urlObj.search
+        linkedinPath = urlObj.pathname
+        linkedinQuery = urlObj.search
       } catch {
         // If URL parsing fails, try simple split
         const parts = url.split('linkedin.com')
-        linkedinPath = parts[1] || '/'
+        const fullPath = parts[1] || '/'
+        const pathParts = fullPath.split('?')
+        linkedinPath = pathParts[0] || '/'
+        linkedinQuery = pathParts[1] ? `?${pathParts[1]}` : ''
       }
       
       // LinkedIn's official mobile app redirect page: linkedinmobileapp.com
-      // This page automatically detects device and redirects to app or app store
-      // We'll use this as the deep link URL, and it will handle the rest
-      const mobileAppUrl = 'https://www.linkedinmobileapp.com/?appType=FLAGSHIP&trk=appupsell-mweb-feed-non-blocking-upsell'
+      // Format: https://www.linkedinmobileapp.com{path}?appType=FLAGSHIP&trk=...
+      // We append the LinkedIn path directly to linkedinmobileapp.com
+      const baseMobileAppUrl = 'https://www.linkedinmobileapp.com'
+      const mobileAppParams = 'appType=FLAGSHIP&trk=lite_protip_feed_details'
       
-      // For iOS, we can also try Universal Links first, then fallback to mobile app page
+      // Build the mobile app URL by appending the LinkedIn path
+      // Example: linkedin.com/posts/... becomes linkedinmobileapp.com/posts/...
+      let mobileAppPath = linkedinPath
+      if (!mobileAppPath.startsWith('/')) {
+        mobileAppPath = '/' + mobileAppPath
+      }
+      
+      // Combine query parameters (if original URL had any, merge with mobile app params)
+      let finalQuery = mobileAppParams
+      if (linkedinQuery) {
+        // Remove the ? from linkedinQuery and merge
+        const linkedinParams = linkedinQuery.substring(1)
+        finalQuery = `${mobileAppParams}&${linkedinParams}`
+      }
+      
+      const mobileAppUrl = `${baseMobileAppUrl}${mobileAppPath}?${finalQuery}`
+      
+      // For iOS, try Universal Links first (they work better), then mobile app page
       // For Android, use the mobile app page which handles device detection
       let iosDeepLink: string
       let androidDeepLink: string
@@ -270,12 +293,7 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const jobMatch = url.match(/linkedin\.com\/jobs\/view\/(\d+)/)
       const jobId = jobMatch ? jobMatch[1] : null
       
-      // Build the mobile app URL with the original LinkedIn URL as a parameter
-      // LinkedIn's mobile app page can then redirect to the specific content
-      const encodedUrl = encodeURIComponent(url)
-      const mobileAppUrlWithTarget = `${mobileAppUrl}&targetUrl=${encodedUrl}`
-      
-      // For iOS, try Universal Links first (they work better), then mobile app page
+      // For iOS, try Universal Links first (they work better)
       if (activityId) {
         iosDeepLink = `https://www.linkedin.com/feed/update/urn:li:activity:${activityId}`
       } else if (username) {
@@ -293,9 +311,12 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         iosDeepLink = cleanUrl
       }
       
-      // For Android, use LinkedIn's mobile app redirect page
+      // For Android, use LinkedIn's mobile app redirect page with the path
       // This page will detect Android and redirect appropriately
-      androidDeepLink = mobileAppUrlWithTarget
+      androidDeepLink = mobileAppUrl
+      
+      // For iOS, we can also use the mobile app page as an alternative
+      // But Universal Links work better, so we keep them as primary
       
       return {
         platform: 'linkedin',
