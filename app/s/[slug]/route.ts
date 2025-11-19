@@ -59,12 +59,44 @@ export async function GET(
       // Silently fail analytics
     })
 
-    // Universal redirect - always use web fallback URL for all platforms
-    // This ensures consistent behavior across all devices and link types
+    // Smart redirect logic - try deep links first, then fallback to web
     let redirectUrl = link.web_fallback
 
-    // Preserve UTM parameters in redirect URL
-    if (Object.keys(utmParams).length > 0) {
+    // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
+    if (deviceInfo.isSocialApp) {
+      // Redirect to smart landing page that handles social app deep links
+      const smartPageUrl = new URL(`/smart/${slug}`, req.url)
+      // Preserve UTM parameters
+      Object.entries(utmParams).forEach(([key, value]) => {
+        smartPageUrl.searchParams.set(key, value)
+      })
+      return NextResponse.redirect(smartPageUrl)
+    }
+
+    // Device-specific redirect logic
+    if (deviceInfo.device === 'ios') {
+      // iOS: Try deep link first, then App Store, then web
+      if (link.ios_url) {
+        redirectUrl = link.ios_url
+      } else if (link.ios_appstore_url) {
+        redirectUrl = link.ios_appstore_url
+      } else {
+        redirectUrl = link.web_fallback
+      }
+    } else if (deviceInfo.device === 'android') {
+      // Android: Try deep link first, then web
+      if (link.android_url) {
+        redirectUrl = link.android_url
+      } else {
+        redirectUrl = link.web_fallback
+      }
+    } else {
+      // Desktop: Use web fallback
+      redirectUrl = link.web_fallback
+    }
+
+    // Preserve UTM parameters in redirect URL (only for web URLs)
+    if (Object.keys(utmParams).length > 0 && redirectUrl.startsWith('http')) {
       const redirectUrlObj = new URL(redirectUrl)
       Object.entries(utmParams).forEach(([key, value]) => {
         redirectUrlObj.searchParams.set(key, value)

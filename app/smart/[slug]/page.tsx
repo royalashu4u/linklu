@@ -27,9 +27,44 @@ export default function SmartRedirectPage() {
   const attemptRedirect = useCallback(() => {
     if (!linkData) return
 
-    // Universal redirect - always use web fallback URL for all platforms
-    // This ensures consistent behavior across all devices and link types
-    window.location.href = linkData.web_fallback
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isIOS = /iphone|ipad|ipod/.test(userAgent)
+    const isAndroid = /android/.test(userAgent)
+
+    if (isIOS) {
+      // Try iOS deep link first
+      if (linkData.ios_url) {
+        // Try multiple methods for social apps
+        tryUniversalLink(linkData.ios_url)
+        setTimeout(() => {
+          // Fallback to App Store or web
+          if (linkData.ios_appstore_url) {
+            window.location.href = linkData.ios_appstore_url
+          } else {
+            window.location.href = linkData.web_fallback
+          }
+        }, 500)
+      } else if (linkData.ios_appstore_url) {
+        window.location.href = linkData.ios_appstore_url
+      } else {
+        window.location.href = linkData.web_fallback
+      }
+    } else if (isAndroid) {
+      // Try Android deep link first
+      if (linkData.android_url) {
+        // Try intent URL format
+        tryDeepLink(linkData.android_url)
+        setTimeout(() => {
+          // Fallback to web
+          window.location.href = linkData.web_fallback
+        }, 500)
+      } else {
+        window.location.href = linkData.web_fallback
+      }
+    } else {
+      // Desktop: Use web fallback
+      window.location.href = linkData.web_fallback
+    }
   }, [linkData])
 
   useEffect(() => {

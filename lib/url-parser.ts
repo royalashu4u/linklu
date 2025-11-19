@@ -189,7 +189,7 @@ export function generateDeepLinks(url: string): ParsedLink | null {
 
     case 'linkedin': {
       // Extract LinkedIn path from URL
-      let linkedinPath = url
+      let linkedinPath = ''
       try {
         const urlObj = new URL(url)
         linkedinPath = urlObj.pathname + urlObj.search
@@ -199,12 +199,12 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         linkedinPath = parts[1] || '/'
       }
       
-      // LinkedIn deep link format
+      // LinkedIn deep link formats that work better
+      // For profiles: linkedin://profile/view?id={id} or linkedin://in/{username}
       // For posts: linkedin://feed/update/{activityId}
-      // For profiles: linkedin://profile/{profileId} or linkedin://in/{username}
       // For companies: linkedin://company/{companyId}
       
-      // Try to extract activity ID from post URLs
+      // Try to extract activity ID from post URLs (format: activity-{id})
       const activityMatch = url.match(/activity-(\d+)/)
       const activityId = activityMatch ? activityMatch[1] : null
       
@@ -216,19 +216,27 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const companyMatch = url.match(/linkedin\.com\/company\/([^\/\?]+)/)
       const companyName = companyMatch ? companyMatch[1] : null
       
-      let iosDeepLink = `linkedin://${linkedinPath}`
-      let androidDeepLink = `linkedin://${linkedinPath}`
+      // LinkedIn uses https:// scheme for Universal Links on iOS
+      // For Android, use linkedin:// scheme
+      let iosDeepLink: string
+      let androidDeepLink: string
       
-      // Use more specific deep links if we can extract IDs
       if (activityId) {
-        iosDeepLink = `linkedin://feed/update/${activityId}`
+        // For posts, use the activity ID
+        iosDeepLink = `https://www.linkedin.com/feed/update/${activityId}`
         androidDeepLink = `linkedin://feed/update/${activityId}`
       } else if (username) {
-        iosDeepLink = `linkedin://in/${username}`
+        // For profiles, use the username
+        iosDeepLink = `https://www.linkedin.com/in/${username}`
         androidDeepLink = `linkedin://in/${username}`
       } else if (companyName) {
-        iosDeepLink = `linkedin://company/${companyName}`
+        // For companies
+        iosDeepLink = `https://www.linkedin.com/company/${companyName}`
         androidDeepLink = `linkedin://company/${companyName}`
+      } else {
+        // Fallback: use the full URL (LinkedIn supports Universal Links)
+        iosDeepLink = url
+        androidDeepLink = `linkedin://${linkedinPath.replace(/^\//, '')}`
       }
       
       return {
