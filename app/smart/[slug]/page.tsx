@@ -163,46 +163,38 @@ export default function SmartRedirectPage() {
           // LinkedIn uses Universal Links which work best on iOS
           if (linkData.ios_url.startsWith('https://')) {
             // Universal Link - will open app if installed
-            // For LinkedIn, this is the best method
-            window.location.href = linkData.ios_url
+            // iOS prefers location.replace for Universal Links
+            window.location.replace(linkData.ios_url)
             
-            // Also try hidden iframe as backup (for some browsers)
-            try {
-              const iframe = document.createElement('iframe')
-              iframe.style.display = 'none'
-              iframe.style.width = '0'
-              iframe.style.height = '0'
-              iframe.src = linkData.ios_url
-              document.body.appendChild(iframe)
-              setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                  document.body.removeChild(iframe)
-                }
-              }, 2000)
-            } catch (e) {
-              // Ignore iframe errors
-            }
+            // Also try location.href as backup
+            setTimeout(() => {
+              if (document.hasFocus()) {
+                window.location.href = linkData.ios_url
+              }
+            }, 100)
             
-            // Fallback after delay if app doesn't open
+            // Fallback after delay if app doesn't open (iOS needs more time)
             setTimeout(() => {
               if (linkData.ios_appstore_url) {
-                window.location.href = linkData.ios_appstore_url
+                window.location.replace(linkData.ios_appstore_url)
               } else {
-                window.location.href = linkData.web_fallback
+                window.location.replace(linkData.web_fallback)
               }
-            }, 3000)
+            }, 3500)
           } else {
             // For custom schemes (youtube://, instagram://, etc.)
+            // iOS requires user interaction for custom schemes to work
+            // Use location.replace which works better on iOS
             tryUniversalLink(linkData.ios_url)
-            // Give more time for app to open before falling back
+            // Give more time for app to open before falling back (iOS needs more time)
             setTimeout(() => {
               // Fallback to App Store or web
               if (linkData.ios_appstore_url) {
-                window.location.href = linkData.ios_appstore_url
+                window.location.replace(linkData.ios_appstore_url)
               } else {
-                window.location.href = linkData.web_fallback
+                window.location.replace(linkData.web_fallback)
               }
-            }, 2000)
+            }, 2500)
           }
         } else if (linkData.ios_appstore_url) {
           window.location.href = linkData.ios_appstore_url
@@ -243,8 +235,21 @@ export default function SmartRedirectPage() {
   useEffect(() => {
     if (!linkData || loading) return
 
-    // Try immediate redirect on page load (for better app opening)
-    attemptRedirect()
+    // For iOS, we should wait a bit and ensure user interaction
+    // iOS requires user interaction for custom schemes to work reliably
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isIOS = /iphone|ipad|ipod/.test(userAgent)
+    
+    if (isIOS) {
+      // On iOS, wait a moment then try redirect
+      // This gives the page time to load and ensures better compatibility
+      setTimeout(() => {
+        attemptRedirect()
+      }, 300)
+    } else {
+      // For Android and desktop, try immediate redirect
+      attemptRedirect()
+    }
 
     // Also set up countdown as fallback
     const timer = setInterval(() => {
@@ -263,22 +268,41 @@ export default function SmartRedirectPage() {
   const tryUniversalLink = (url: string) => {
     // For Universal Links (https://), they work directly and will open app if installed
     if (url.startsWith('https://')) {
-      window.location.href = url
+      // iOS prefers location.replace for Universal Links
+      window.location.replace(url)
       return
     }
     
-    // For custom schemes (vnd.youtube://, linkedin://, etc.)
-    // Method 1: Direct navigation (primary method)
-    window.location.href = url
+    // For custom schemes on iOS, we need to use location.replace
+    // iOS requires user interaction, so this should be called from a user event
+    // Method 1: Use location.replace (works better on iOS than location.href)
+    window.location.replace(url)
     
-    // Method 2: Hidden iframe (for Instagram/Facebook browsers)
+    // Method 2: Also try location.href as fallback
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        window.location.href = url
+      }
+    }, 100)
+    
+    // Method 3: Hidden iframe (for some browsers, but iOS Safari blocks this)
+    // Only use iframe for non-Safari browsers
     try {
-      const iframe = document.createElement('iframe')
-      iframe.style.display = 'none'
-      iframe.style.width = '0'
-      iframe.style.height = '0'
-      iframe.src = url
-      document.body.appendChild(iframe)
+      const userAgent = navigator.userAgent.toLowerCase()
+      const isSafari = /safari/.test(userAgent) && !/chrome|crios/.test(userAgent)
+      if (!isSafari) {
+        const iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.src = url
+        document.body.appendChild(iframe)
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+        }, 1000)
+      }
     } catch (e) {
       // Ignore iframe errors
     }
