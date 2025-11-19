@@ -397,10 +397,13 @@ export default function SmartRedirectPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {linkData.title || 'Opening App...'}
+            {openingInChrome ? 'Opening in Browser' : (linkData.title || 'Opening App...')}
           </h1>
           <p className="text-gray-600">
-            Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}
+            {openingInChrome 
+              ? 'Opening link in Chrome browser...'
+              : `Redirecting in ${countdown} second${countdown !== 1 ? 's' : ''}...`
+            }
           </p>
         </div>
 
