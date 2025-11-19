@@ -15,25 +15,55 @@ export interface ParsedLink {
 }
 
 /**
- * Detect platform from URL
+ * Detect platform from URL - supports many platforms
  */
 export function detectPlatform(url: string): string | null {
   const lowerUrl = url.toLowerCase()
   
+  // Video platforms
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube'
+  if (lowerUrl.includes('tiktok.com')) return 'tiktok'
+  if (lowerUrl.includes('vimeo.com')) return 'vimeo'
+  if (lowerUrl.includes('twitch.tv')) return 'twitch'
+  
+  // Social media
   if (lowerUrl.includes('instagram.com')) return 'instagram'
   if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'twitter'
-  if (lowerUrl.includes('tiktok.com')) return 'tiktok'
-  if (lowerUrl.includes('spotify.com')) return 'spotify'
-  if (lowerUrl.includes('linkedin.com')) return 'linkedin'
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.com')) return 'facebook'
-  if (lowerUrl.includes('whatsapp.com')) return 'whatsapp'
-  if (lowerUrl.includes('telegram.org')) return 'telegram'
-  if (lowerUrl.includes('snapchat.com')) return 'snapchat'
+  if (lowerUrl.includes('linkedin.com')) return 'linkedin'
   if (lowerUrl.includes('pinterest.com')) return 'pinterest'
   if (lowerUrl.includes('reddit.com')) return 'reddit'
+  if (lowerUrl.includes('snapchat.com')) return 'snapchat'
+  if (lowerUrl.includes('discord.com') || lowerUrl.includes('discord.gg')) return 'discord'
   
-  return null
+  // Messaging
+  if (lowerUrl.includes('whatsapp.com')) return 'whatsapp'
+  if (lowerUrl.includes('telegram.org')) return 'telegram'
+  if (lowerUrl.includes('signal.org')) return 'signal'
+  
+  // Music
+  if (lowerUrl.includes('spotify.com')) return 'spotify'
+  if (lowerUrl.includes('apple.com/music') || lowerUrl.includes('music.apple.com')) return 'apple-music'
+  if (lowerUrl.includes('soundcloud.com')) return 'soundcloud'
+  
+  // Shopping
+  if (lowerUrl.includes('amazon.com') || lowerUrl.includes('amazon.')) return 'amazon'
+  if (lowerUrl.includes('shopify.com') || lowerUrl.includes('.myshopify.com')) return 'shopify'
+  if (lowerUrl.includes('etsy.com')) return 'etsy'
+  
+  // Productivity
+  if (lowerUrl.includes('notion.so')) return 'notion'
+  if (lowerUrl.includes('figma.com')) return 'figma'
+  if (lowerUrl.includes('github.com')) return 'github'
+  if (lowerUrl.includes('medium.com')) return 'medium'
+  
+  // Generic detection - if it's a valid URL, return 'web'
+  try {
+    new URL(url)
+    return 'web'
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -290,17 +320,150 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       }
     }
 
-    default:
+    case 'vimeo': {
+      const videoMatch = url.match(/vimeo\.com\/(\d+)/)
+      const videoId = videoMatch ? videoMatch[1] : null
       return {
-        platform: 'web',
-        platformName: 'Web',
-        ios_url: null,
-        android_url: null,
-        ios_appstore_url: null,
-        android_playstore_url: null,
+        platform: 'vimeo',
+        platformName: 'Vimeo',
+        ios_url: videoId ? `vimeo://videos/${videoId}` : null,
+        android_url: videoId ? `vimeo://videos/${videoId}` : null,
+        ios_appstore_url: 'https://apps.apple.com/app/vimeo/id425194759',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.vimeo.android.videoapp',
         web_fallback: url,
-        title: null,
+        title: `Vimeo Video`,
       }
+    }
+
+    case 'twitch': {
+      return {
+        platform: 'twitch',
+        platformName: 'Twitch',
+        ios_url: url.replace('https://www.twitch.tv', 'twitch://'),
+        android_url: url.replace('https://www.twitch.tv', 'twitch://'),
+        ios_appstore_url: 'https://apps.apple.com/app/twitch/id460177396',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=tv.twitch.android.app',
+        web_fallback: url,
+        title: `Twitch`,
+      }
+    }
+
+    case 'pinterest': {
+      return {
+        platform: 'pinterest',
+        platformName: 'Pinterest',
+        ios_url: url.replace('https://www.pinterest.com', 'pinterest://'),
+        android_url: url.replace('https://www.pinterest.com', 'pinterest://'),
+        ios_appstore_url: 'https://apps.apple.com/app/pinterest/id429047995',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.pinterest',
+        web_fallback: url,
+        title: `Pinterest`,
+      }
+    }
+
+    case 'reddit': {
+      return {
+        platform: 'reddit',
+        platformName: 'Reddit',
+        ios_url: url.replace('https://www.reddit.com', 'reddit://'),
+        android_url: url.replace('https://www.reddit.com', 'reddit://'),
+        ios_appstore_url: 'https://apps.apple.com/app/reddit/id1064216828',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.reddit.frontpage',
+        web_fallback: url,
+        title: `Reddit`,
+      }
+    }
+
+    case 'snapchat': {
+      return {
+        platform: 'snapchat',
+        platformName: 'Snapchat',
+        ios_url: url.replace('https://www.snapchat.com', 'snapchat://'),
+        android_url: url.replace('https://www.snapchat.com', 'snapchat://'),
+        ios_appstore_url: 'https://apps.apple.com/app/snapchat/id447188370',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.snapchat.android',
+        web_fallback: url,
+        title: `Snapchat`,
+      }
+    }
+
+    case 'discord': {
+      return {
+        platform: 'discord',
+        platformName: 'Discord',
+        ios_url: url.replace('https://discord.com', 'discord://'),
+        android_url: url.replace('https://discord.com', 'discord://'),
+        ios_appstore_url: 'https://apps.apple.com/app/discord/id985746746',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.discord',
+        web_fallback: url,
+        title: `Discord`,
+      }
+    }
+
+    case 'amazon': {
+      return {
+        platform: 'amazon',
+        platformName: 'Amazon',
+        ios_url: url.replace(/https?:\/\/(www\.)?amazon\./, 'amazon://'),
+        android_url: url.replace(/https?:\/\/(www\.)?amazon\./, 'amazon://'),
+        ios_appstore_url: 'https://apps.apple.com/app/amazon/id297606951',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.amazon.mShop.android.shopping',
+        web_fallback: url,
+        title: `Amazon`,
+      }
+    }
+
+    case 'github': {
+      return {
+        platform: 'github',
+        platformName: 'GitHub',
+        ios_url: url.replace('https://github.com', 'github://'),
+        android_url: url.replace('https://github.com', 'github://'),
+        ios_appstore_url: 'https://apps.apple.com/app/github/id1477376905',
+        android_playstore_url: 'https://play.google.com/store/apps/details?id=com.github.android',
+        web_fallback: url,
+        title: `GitHub`,
+      }
+    }
+
+    case 'web':
+    default: {
+      // Generic URL - try to generate deep link from domain
+      // Extract domain and try common deep link patterns
+      try {
+        const urlObj = new URL(url)
+        const domain = urlObj.hostname.replace('www.', '')
+        const path = urlObj.pathname + urlObj.search
+        
+        // Try to generate a generic deep link
+        // Many apps use their domain name as the scheme
+        const domainName = domain.split('.')[0]
+        const genericDeepLink = `${domainName}://${path.replace(/^\//, '')}`
+        
+        return {
+          platform: 'web',
+          platformName: domain,
+          ios_url: genericDeepLink,
+          android_url: genericDeepLink,
+          ios_appstore_url: null,
+          android_playstore_url: null,
+          web_fallback: url,
+          title: null,
+        }
+      } catch {
+        // If URL parsing fails, just use as web fallback
+        return {
+          platform: 'web',
+          platformName: 'Web',
+          ios_url: null,
+          android_url: null,
+          ios_appstore_url: null,
+          android_playstore_url: null,
+          web_fallback: url,
+          title: null,
+        }
+      }
+    }
   }
 }
 
