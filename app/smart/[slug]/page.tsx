@@ -206,15 +206,32 @@ export default function SmartRedirectPage() {
     
     // For LinkedIn on Android
     if (url.startsWith('linkedin://')) {
-      // Try direct navigation first
+      // Method 1: Try direct navigation first
       window.location.href = url
       
-      // Also try with intent URL format for better compatibility
+      // Method 2: Try with intent URL format for better compatibility
       const path = url.replace('linkedin://', '')
       const intentUrl = `intent://${path}#Intent;scheme=linkedin;package=com.linkedin.android;end`
       setTimeout(() => {
         window.location.href = intentUrl
-      }, 300)
+      }, 500)
+      
+      // Method 3: Also try hidden iframe (some browsers block direct navigation)
+      try {
+        const iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.src = url
+        document.body.appendChild(iframe)
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+        }, 1000)
+      } catch (e) {
+        // Ignore iframe errors
+      }
       return
     }
     
