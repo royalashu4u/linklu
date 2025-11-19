@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 
 export default function SmartRedirectPage() {
@@ -24,23 +24,7 @@ export default function SmartRedirectPage() {
       .catch(() => setLoading(false))
   }, [slug])
 
-  useEffect(() => {
-    if (!linkData || loading) return
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          attemptRedirect()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [linkData, loading])
-
-  const attemptRedirect = () => {
+  const attemptRedirect = useCallback(() => {
     if (!linkData) return
 
     const userAgent = navigator.userAgent.toLowerCase()
@@ -71,21 +55,33 @@ export default function SmartRedirectPage() {
         // Try intent URL format
         tryDeepLink(linkData.android_url)
         setTimeout(() => {
-          // Fallback to Play Store or web
-          if (linkData.android_playstore_url) {
-            window.location.href = linkData.android_playstore_url
-          } else {
-            window.location.href = linkData.web_fallback
-          }
+          // Fallback to web (Play Store disabled)
+          window.location.href = linkData.web_fallback
         }, 500)
-      } else if (linkData.android_playstore_url) {
-        redirectUrl = linkData.android_playstore_url
+      } else {
+        redirectUrl = linkData.web_fallback
       }
     }
 
     // Final redirect
     window.location.href = redirectUrl
-  }
+  }, [linkData])
+
+  useEffect(() => {
+    if (!linkData || loading) return
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          attemptRedirect()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [linkData, loading, attemptRedirect])
 
   const tryUniversalLink = (url: string) => {
     // Method 1: Direct navigation
@@ -137,7 +133,7 @@ export default function SmartRedirectPage() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Link Not Found</h1>
-          <p className="text-gray-600">The link you're looking for doesn't exist.</p>
+          <p className="text-gray-600">The link you&apos;re looking for doesn&apos;t exist.</p>
         </div>
       </div>
     )

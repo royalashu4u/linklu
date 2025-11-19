@@ -84,11 +84,9 @@ export async function GET(
         redirectUrl = link.web_fallback
       }
     } else if (deviceInfo.device === 'android') {
-      // Android: Try deep link first, then Play Store, then web
+      // Android: Try deep link first, then web (Play Store disabled)
       if (link.android_url) {
         redirectUrl = link.android_url
-      } else if (link.android_playstore_url) {
-        redirectUrl = link.android_playstore_url
       } else {
         redirectUrl = link.web_fallback
       }
