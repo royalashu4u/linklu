@@ -450,7 +450,11 @@ export default function SmartRedirectPage() {
 
         <div className="space-y-4">
           <button
-            onClick={attemptRedirect}
+            onClick={(e) => {
+              e.preventDefault()
+              // User interaction is required for iOS custom schemes to work
+              attemptRedirect()
+            }}
             className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
           >
             Open Now
