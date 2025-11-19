@@ -158,10 +158,16 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const postId = extractInstagramId(url)
       if (!postId) return null
       
+      // Instagram's in-app browser blocks deep links
+      // For iOS, use Universal Links (https://) - they work better
+      // For Android, Instagram no longer supports intent:// and app:// (as of Oct 2024)
+      // So we use the web URL and let Instagram handle it
       return {
         platform: 'instagram',
         platformName: 'Instagram',
-        ios_url: `instagram://media?id=${postId}`,
+        // iOS: Try Universal Link first (works in Safari), fallback to custom scheme
+        ios_url: `https://www.instagram.com/p/${postId}/`,
+        // Android: Use web URL (Instagram handles it) or try custom scheme
         android_url: `instagram://media?id=${postId}`,
         ios_appstore_url: 'https://apps.apple.com/app/instagram/id389801252',
         android_playstore_url: 'https://play.google.com/store/apps/details?id=com.instagram.android',
@@ -174,10 +180,14 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const tweetId = extractTwitterId(url)
       if (!tweetId) return null
       
+      // Twitter/X uses twitter:// scheme
+      // For iOS, Universal Links also work
       return {
         platform: 'twitter',
         platformName: 'Twitter/X',
-        ios_url: `twitter://status?id=${tweetId}`,
+        // iOS: Try Universal Link (works better), fallback to custom scheme
+        ios_url: `https://twitter.com/i/status/${tweetId}`,
+        // Android: Use custom scheme
         android_url: `twitter://status?id=${tweetId}`,
         ios_appstore_url: 'https://apps.apple.com/app/twitter/id333903271',
         android_playstore_url: 'https://play.google.com/store/apps/details?id=com.twitter.android',
@@ -230,16 +240,11 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         linkedinPath = parts[1] || '/'
       }
       
-      // LinkedIn deep link formats
-      // For profiles: linkedin://in/{username} or linkedin://profile/view?id={id}
-      // For posts: linkedin://feed/update/{activityId} or linkedin://feed/update/urn:li:activity:{id}
-      // For companies: linkedin://company/{companyId}
-      // For jobs: linkedin://job/{jobId}
+      // LinkedIn uses voyager:// scheme (not linkedin://)
+      // For iOS, Universal Links (https://) work best
+      // For Android, use voyager:// scheme
       
       // Try to extract activity ID from post URLs (multiple formats)
-      // Format 1: /feed/update/urn:li:activity:1234567890
-      // Format 2: /feed/update/1234567890
-      // Format 3: activity-1234567890
       const activityUrnMatch = url.match(/\/feed\/update\/urn:li:activity:(\d+)/)
       const activityIdMatch = url.match(/\/feed\/update\/(\d+)/)
       const activityShortMatch = url.match(/activity-(\d+)/)
@@ -260,39 +265,36 @@ export function generateDeepLinks(url: string): ParsedLink | null {
       const jobId = jobMatch ? jobMatch[1] : null
       
       // LinkedIn uses https:// scheme for Universal Links on iOS (works best)
-      // For Android, use linkedin:// scheme with intent:// fallback
+      // For Android, use voyager:// scheme (LinkedIn's official scheme)
       let iosDeepLink: string
       let androidDeepLink: string
       
       if (activityId) {
         // For posts - use the activity ID
-        // iOS: Universal Link format
         iosDeepLink = `https://www.linkedin.com/feed/update/urn:li:activity:${activityId}`
-        // Android: linkedin:// scheme
-        androidDeepLink = `linkedin://feed/update/urn:li:activity:${activityId}`
+        androidDeepLink = `voyager://feed/update/urn:li:activity:${activityId}`
       } else if (username) {
         // For profiles - use the username
         iosDeepLink = `https://www.linkedin.com/in/${username}`
-        androidDeepLink = `linkedin://in/${username}`
+        androidDeepLink = `voyager://in/${username}`
       } else if (companyName) {
         // For companies
         iosDeepLink = `https://www.linkedin.com/company/${companyName}`
-        androidDeepLink = `linkedin://company/${companyName}`
+        androidDeepLink = `voyager://company/${companyName}`
       } else if (jobId) {
         // For jobs
         iosDeepLink = `https://www.linkedin.com/jobs/view/${jobId}`
-        androidDeepLink = `linkedin://job/${jobId}`
+        androidDeepLink = `voyager://job/${jobId}`
       } else {
         // Fallback: use the full URL (LinkedIn supports Universal Links on iOS)
-        // Clean up the URL to ensure it's in the right format
         let cleanUrl = url
         if (!url.startsWith('http')) {
           cleanUrl = `https://${url}`
         }
         iosDeepLink = cleanUrl
-        // For Android, try to construct a deep link from the path
+        // For Android, use voyager:// with path
         const path = linkedinPath.replace(/^\//, '').replace(/\?.*$/, '')
-        androidDeepLink = path ? `linkedin://${path}` : `linkedin://`
+        androidDeepLink = path ? `voyager://${path}` : `voyager://`
       }
       
       return {

@@ -204,14 +204,14 @@ export default function SmartRedirectPage() {
       return
     }
     
-    // For LinkedIn on Android
-    if (url.startsWith('linkedin://')) {
+    // For LinkedIn on Android (uses voyager:// scheme)
+    if (url.startsWith('voyager://')) {
       // Method 1: Try direct navigation first
       window.location.href = url
       
       // Method 2: Try with intent URL format for better compatibility
-      const path = url.replace('linkedin://', '')
-      const intentUrl = `intent://${path}#Intent;scheme=linkedin;package=com.linkedin.android;end`
+      const path = url.replace('voyager://', '')
+      const intentUrl = `intent://${path}#Intent;scheme=voyager;package=com.linkedin.android;end`
       setTimeout(() => {
         window.location.href = intentUrl
       }, 500)
@@ -232,6 +232,17 @@ export default function SmartRedirectPage() {
       } catch (e) {
         // Ignore iframe errors
       }
+      return
+    }
+    
+    // For LinkedIn on Android (legacy linkedin:// scheme - try both)
+    if (url.startsWith('linkedin://')) {
+      window.location.href = url
+      // Also try voyager:// as fallback
+      const path = url.replace('linkedin://', '')
+      setTimeout(() => {
+        window.location.href = `voyager://${path}`
+      }, 500)
       return
     }
     
