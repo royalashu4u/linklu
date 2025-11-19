@@ -59,48 +59,9 @@ export async function GET(
       // Silently fail analytics
     })
 
-    // Smart redirect logic with fallback chain
+    // Universal redirect - always use web fallback URL for all platforms
+    // This ensures consistent behavior across all devices and link types
     let redirectUrl = link.web_fallback
-    
-    // Check if this is a LinkedIn URL - LinkedIn deep links are unreliable, use web directly
-    const isLinkedIn = link.web_fallback?.toLowerCase().includes('linkedin.com')
-
-    // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
-    if (deviceInfo.isSocialApp) {
-      // Redirect to smart landing page that handles social app deep links
-      const smartPageUrl = new URL(`/smart/${slug}`, req.url)
-      // Preserve UTM parameters
-      Object.entries(utmParams).forEach(([key, value]) => {
-        smartPageUrl.searchParams.set(key, value)
-      })
-      return NextResponse.redirect(smartPageUrl)
-    }
-
-    // For LinkedIn, always use web URL (deep links are unreliable)
-    if (isLinkedIn) {
-      redirectUrl = link.web_fallback
-    }
-    // Device-specific redirect logic
-    else if (deviceInfo.device === 'ios') {
-      // iOS: Try deep link first, then App Store, then web
-      if (link.ios_url) {
-        redirectUrl = link.ios_url
-      } else if (link.ios_appstore_url) {
-        redirectUrl = link.ios_appstore_url
-      } else {
-        redirectUrl = link.web_fallback
-      }
-    } else if (deviceInfo.device === 'android') {
-      // Android: Try deep link first, then web (Play Store disabled)
-      if (link.android_url) {
-        redirectUrl = link.android_url
-      } else {
-        redirectUrl = link.web_fallback
-      }
-    } else {
-      // Desktop: Use web fallback
-      redirectUrl = link.web_fallback
-    }
 
     // Preserve UTM parameters in redirect URL
     if (Object.keys(utmParams).length > 0) {

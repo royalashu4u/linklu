@@ -27,53 +27,9 @@ export default function SmartRedirectPage() {
   const attemptRedirect = useCallback(() => {
     if (!linkData) return
 
-    const userAgent = navigator.userAgent.toLowerCase()
-    const isIOS = /iphone|ipad|ipod/.test(userAgent)
-    const isAndroid = /android/.test(userAgent)
-    
-    // Check if this is a LinkedIn URL - LinkedIn deep links are unreliable, use web directly
-    const isLinkedIn = linkData.web_fallback?.toLowerCase().includes('linkedin.com')
-
-    let redirectUrl = linkData.web_fallback
-
-    // For LinkedIn, always use web URL (deep links are unreliable)
-    if (isLinkedIn) {
-      window.location.href = linkData.web_fallback
-      return
-    }
-
-    if (isIOS) {
-      // Try iOS deep link first
-      if (linkData.ios_url) {
-        // Try multiple methods for social apps
-        tryUniversalLink(linkData.ios_url)
-        setTimeout(() => {
-          // Fallback to App Store or web
-          if (linkData.ios_appstore_url) {
-            window.location.href = linkData.ios_appstore_url
-          } else {
-            window.location.href = linkData.web_fallback
-          }
-        }, 500)
-      } else if (linkData.ios_appstore_url) {
-        redirectUrl = linkData.ios_appstore_url
-      }
-    } else if (isAndroid) {
-      // Try Android deep link first
-      if (linkData.android_url) {
-        // Try intent URL format
-        tryDeepLink(linkData.android_url)
-        setTimeout(() => {
-          // Fallback to web (Play Store disabled)
-          window.location.href = linkData.web_fallback
-        }, 500)
-      } else {
-        redirectUrl = linkData.web_fallback
-      }
-    }
-
-    // Final redirect
-    window.location.href = redirectUrl
+    // Universal redirect - always use web fallback URL for all platforms
+    // This ensures consistent behavior across all devices and link types
+    window.location.href = linkData.web_fallback
   }, [linkData])
 
   useEffect(() => {
