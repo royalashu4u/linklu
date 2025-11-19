@@ -59,17 +59,13 @@ export async function GET(
       // Silently fail analytics
     })
 
-    // Smart redirect logic - try deep links first, then fallback to web
-    let redirectUrl = link.web_fallback
+    // Smart redirect logic - ALL mobile devices need client-side deep link handling
+    // Server-side redirects to custom schemes (vnd.youtube://, linkedin://) don't work
+    // So we use the smart landing page for all mobile devices
     
-    // Check if this is a LinkedIn URL - LinkedIn needs client-side deep link handling
-    const isLinkedIn = link.web_fallback?.toLowerCase().includes('linkedin.com')
-
-    // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
-    // Also use smart landing page for LinkedIn on mobile to properly handle deep links
-    // For Instagram, always use smart landing page to handle restrictions
-    if (deviceInfo.isSocialApp || deviceInfo.browser === 'instagram' || (isLinkedIn && (deviceInfo.device === 'ios' || deviceInfo.device === 'android'))) {
-      // Redirect to smart landing page that handles social app deep links
+    // For mobile devices (iOS/Android), always use smart landing page for deep link handling
+    if (deviceInfo.device === 'ios' || deviceInfo.device === 'android') {
+      // Redirect to smart landing page that handles deep links client-side
       const smartPageUrl = new URL(`/smart/${slug}`, req.url)
       // Preserve UTM parameters
       Object.entries(utmParams).forEach(([key, value]) => {
@@ -77,28 +73,9 @@ export async function GET(
       })
       return NextResponse.redirect(smartPageUrl)
     }
-
-    // Device-specific redirect logic
-    if (deviceInfo.device === 'ios') {
-      // iOS: Try deep link first, then App Store, then web
-      if (link.ios_url) {
-        redirectUrl = link.ios_url
-      } else if (link.ios_appstore_url) {
-        redirectUrl = link.ios_appstore_url
-      } else {
-        redirectUrl = link.web_fallback
-      }
-    } else if (deviceInfo.device === 'android') {
-      // Android: Try deep link first, then web
-      if (link.android_url) {
-        redirectUrl = link.android_url
-      } else {
-        redirectUrl = link.web_fallback
-      }
-    } else {
-      // Desktop: Use web fallback
-      redirectUrl = link.web_fallback
-    }
+    
+    // Desktop: Use web fallback directly
+    let redirectUrl = link.web_fallback
 
     // Preserve UTM parameters in redirect URL (only for web URLs)
     if (Object.keys(utmParams).length > 0 && redirectUrl.startsWith('http')) {

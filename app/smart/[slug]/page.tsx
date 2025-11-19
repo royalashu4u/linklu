@@ -40,16 +40,23 @@ export default function SmartRedirectPage() {
       const isAndroid = /android/.test(userAgent)
       const isInstagram = userAgent.includes('instagram')
 
-      // For Instagram browser, use simpler redirect strategy
+      // For Instagram browser, try deep link first, then web
       if (isInstagram) {
-        // Instagram blocks many redirects, so use direct web fallback or try simple deep link
-        if (linkData.web_fallback) {
-          // Try to open in external browser first
-          window.open(linkData.web_fallback, '_blank')
-          // Fallback to same window
+        if (isIOS && linkData.ios_url) {
+          // Try iOS deep link
+          tryUniversalLink(linkData.ios_url)
           setTimeout(() => {
             window.location.href = linkData.web_fallback
-          }, 500)
+          }, 1000)
+        } else if (isAndroid && linkData.android_url) {
+          // Try Android deep link
+          tryDeepLink(linkData.android_url)
+          setTimeout(() => {
+            window.location.href = linkData.web_fallback
+          }, 1000)
+        } else {
+          // Fallback to web
+          window.location.href = linkData.web_fallback
         }
         return
       }
@@ -128,29 +135,45 @@ export default function SmartRedirectPage() {
   }, [linkData, loading, attemptRedirect])
 
   const tryUniversalLink = (url: string) => {
-    // For LinkedIn Universal Links (https://), they work directly
+    // For Universal Links (https://), they work directly and will open app if installed
     if (url.startsWith('https://')) {
       window.location.href = url
       return
     }
     
-    // Method 1: Direct navigation
+    // For custom schemes (vnd.youtube://, linkedin://, etc.)
+    // Method 1: Direct navigation (primary method)
     window.location.href = url
     
-    // Method 2: Hidden iframe (for Instagram/Facebook)
-    const iframe = document.createElement('iframe')
-    iframe.style.display = 'none'
-    iframe.src = url
-    document.body.appendChild(iframe)
-    
-    // Method 3: Window open (for some browsers)
-    setTimeout(() => {
-      window.open(url, '_blank')
-    }, 100)
+    // Method 2: Hidden iframe (for Instagram/Facebook browsers)
+    try {
+      const iframe = document.createElement('iframe')
+      iframe.style.display = 'none'
+      iframe.style.width = '0'
+      iframe.style.height = '0'
+      iframe.src = url
+      document.body.appendChild(iframe)
+    } catch (e) {
+      // Ignore iframe errors
+    }
   }
 
   const tryDeepLink = (url: string) => {
-    // For LinkedIn on Android, use linkedin:// scheme
+    // For YouTube on Android
+    if (url.startsWith('vnd.youtube://')) {
+      // Try direct navigation
+      window.location.href = url
+      
+      // Also try intent URL format for better compatibility
+      const path = url.replace('vnd.youtube://', '')
+      const intentUrl = `intent://${path}#Intent;scheme=vnd.youtube;package=com.google.android.youtube;end`
+      setTimeout(() => {
+        window.location.href = intentUrl
+      }, 300)
+      return
+    }
+    
+    // For LinkedIn on Android
     if (url.startsWith('linkedin://')) {
       // Try direct navigation first
       window.location.href = url
@@ -168,7 +191,7 @@ export default function SmartRedirectPage() {
     if (url.startsWith('intent://')) {
       window.location.href = url
     } else {
-      // Try as regular URL
+      // Try as regular URL (custom scheme)
       window.location.href = url
       
       // Also try as intent if it's a custom scheme
