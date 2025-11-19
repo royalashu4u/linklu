@@ -31,6 +31,56 @@ export default function SmartRedirectPage() {
       })
   }, [slug])
 
+  // Check if platform has proper deep link support
+  const hasProperDeepLinkSupport = (webFallback: string): boolean => {
+    if (!webFallback) return false
+    const url = webFallback.toLowerCase()
+    
+    // Platforms with proper deep link support
+    const supportedPlatforms = [
+      'youtube.com', 'youtu.be',
+      'linkedin.com',
+      'linkedinmobileapp.com'
+    ]
+    
+    return supportedPlatforms.some(platform => url.includes(platform))
+  }
+
+  // Open in Chrome/external browser
+  const openInChrome = (url: string) => {
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isAndroid = /android/.test(userAgent)
+    
+    if (isAndroid) {
+      // Android: Use intent URL to open in Chrome
+      try {
+        // Remove protocol and create intent URL
+        const urlWithoutProtocol = url.replace(/^https?:\/\//, '')
+        const intentUrl = `intent://${urlWithoutProtocol}#Intent;scheme=https;package=com.android.chrome;end`
+        
+        // Try to open in Chrome
+        window.location.href = intentUrl
+        
+        // Fallback: If Chrome intent doesn't work, try default browser
+        setTimeout(() => {
+          // Try opening in default browser
+          window.open(url, '_blank')
+          // If that doesn't work, redirect in same window
+          setTimeout(() => {
+            window.location.href = url
+          }, 1000)
+        }, 1000)
+      } catch (e) {
+        // If intent fails, just open the URL
+        window.location.href = url
+      }
+    } else {
+      // iOS: Try to open in Safari (can't force Chrome on iOS)
+      // Show a message to user to open in Safari
+      window.location.href = url
+    }
+  }
+
   const attemptRedirect = useCallback(() => {
     if (!linkData) return
 
@@ -39,6 +89,24 @@ export default function SmartRedirectPage() {
       const isIOS = /iphone|ipad|ipod/.test(userAgent)
       const isAndroid = /android/.test(userAgent)
       const isInstagram = userAgent.includes('instagram')
+      const isFacebook = userAgent.includes('fban') || userAgent.includes('fbav') || userAgent.includes('fbsv')
+      const isWhatsApp = userAgent.includes('whatsapp')
+      const isLinkedInApp = userAgent.includes('linkedinapp')
+      const isTwitter = userAgent.includes('twitter') || userAgent.includes('tweetie')
+      const isTelegram = userAgent.includes('telegram')
+      
+      // Check if we're in an in-app browser
+      const isInAppBrowser = isInstagram || isFacebook || isWhatsApp || isLinkedInApp || isTwitter || isTelegram
+      
+      // Check if platform has proper deep link support
+      const hasSupport = hasProperDeepLinkSupport(linkData.web_fallback)
+      
+      // If in in-app browser and platform doesn't have proper support, open in Chrome
+      if (isInAppBrowser && !hasSupport) {
+        setOpeningInChrome(true)
+        openInChrome(linkData.web_fallback)
+        return
+      }
 
       // For Instagram browser, try deep link first, then web
       if (isInstagram) {
