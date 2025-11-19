@@ -33,15 +33,26 @@ export default function SmartRedirectPage() {
   }, [slug])
 
   // Check if platform has proper deep link support
-  const hasProperDeepLinkSupport = (webFallback: string): boolean => {
+  const hasProperDeepLinkSupport = (webFallback: string, iosUrl: string | null, androidUrl: string | null): boolean => {
     if (!webFallback) return false
+    
+    // If deep links exist, the platform has support
+    if (iosUrl || androidUrl) {
+      return true
+    }
+    
     const url = webFallback.toLowerCase()
     
-    // Platforms with proper deep link support
+    // Platforms with proper deep link support (even if deep links aren't generated)
     const supportedPlatforms = [
       'youtube.com', 'youtu.be',
       'linkedin.com',
-      'linkedinmobileapp.com'
+      'linkedinmobileapp.com',
+      'twitter.com', 'x.com',
+      'spotify.com',
+      'instagram.com',
+      'tiktok.com',
+      'facebook.com', 'fb.com'
     ]
     
     return supportedPlatforms.some(platform => url.includes(platform))
@@ -99,11 +110,16 @@ export default function SmartRedirectPage() {
       // Check if we're in an in-app browser
       const isInAppBrowser = isInstagram || isFacebook || isWhatsApp || isLinkedInApp || isTwitter || isTelegram
       
-      // Check if platform has proper deep link support
-      const hasSupport = hasProperDeepLinkSupport(linkData.web_fallback)
+      // Check if platform has proper deep link support (check if deep links exist)
+      const hasSupport = hasProperDeepLinkSupport(
+        linkData.web_fallback,
+        linkData.ios_url,
+        linkData.android_url
+      )
       
       // If in in-app browser and platform doesn't have proper support, open in Chrome
-      if (isInAppBrowser && !hasSupport) {
+      // BUT only if we don't have deep links to try first
+      if (isInAppBrowser && !hasSupport && !linkData.ios_url && !linkData.android_url) {
         setOpeningInChrome(true)
         openInChrome(linkData.web_fallback)
         return
