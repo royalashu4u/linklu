@@ -100,4 +100,3 @@
 - **Custom Schemes**: Work on both iOS and Android but may be blocked by in-app browsers
 - **In-App Browsers**: Instagram, Facebook, LinkedIn, WhatsApp in-app browsers often block deep links
 - **Android Intent URLs**: Better compatibility on Android, format: `intent://{path}#Intent;scheme={scheme};package={package};end`
-
