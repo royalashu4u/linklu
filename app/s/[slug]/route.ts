@@ -67,7 +67,8 @@ export async function GET(
 
     // If opened in social app (Instagram, WhatsApp, etc.), use smart landing page
     // Also use smart landing page for LinkedIn on mobile to properly handle deep links
-    if (deviceInfo.isSocialApp || (isLinkedIn && (deviceInfo.device === 'ios' || deviceInfo.device === 'android'))) {
+    // For Instagram, always use smart landing page to handle restrictions
+    if (deviceInfo.isSocialApp || deviceInfo.browser === 'instagram' || (isLinkedIn && (deviceInfo.device === 'ios' || deviceInfo.device === 'android'))) {
       // Redirect to smart landing page that handles social app deep links
       const smartPageUrl = new URL(`/smart/${slug}`, req.url)
       // Preserve UTM parameters

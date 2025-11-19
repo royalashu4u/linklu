@@ -11,9 +11,12 @@ export default function SmartRedirectPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch link data
+    // Fetch link data with error handling for Instagram browser
     fetch(`/api/links`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
       .then(links => {
         const link = links.find((l: any) => l.slug === slug)
         if (link) {
@@ -21,63 +24,90 @@ export default function SmartRedirectPage() {
         }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((error) => {
+        console.error('Error fetching link:', error)
+        setLoading(false)
+        // Show error state
+      })
   }, [slug])
 
   const attemptRedirect = useCallback(() => {
     if (!linkData) return
 
-    const userAgent = navigator.userAgent.toLowerCase()
-    const isIOS = /iphone|ipad|ipod/.test(userAgent)
-    const isAndroid = /android/.test(userAgent)
+    try {
+      const userAgent = navigator.userAgent.toLowerCase()
+      const isIOS = /iphone|ipad|ipod/.test(userAgent)
+      const isAndroid = /android/.test(userAgent)
+      const isInstagram = userAgent.includes('instagram')
 
-    if (isIOS) {
-      // Try iOS deep link first
-      if (linkData.ios_url) {
-        // For LinkedIn, Universal Links (https://) work better
-        if (linkData.ios_url.startsWith('https://')) {
-          // LinkedIn Universal Link - will open app if installed
-          window.location.href = linkData.ios_url
-          // Fallback after delay if app doesn't open
+      // For Instagram browser, use simpler redirect strategy
+      if (isInstagram) {
+        // Instagram blocks many redirects, so use direct web fallback or try simple deep link
+        if (linkData.web_fallback) {
+          // Try to open in external browser first
+          window.open(linkData.web_fallback, '_blank')
+          // Fallback to same window
           setTimeout(() => {
-            if (linkData.ios_appstore_url) {
-              window.location.href = linkData.ios_appstore_url
-            } else {
-              window.location.href = linkData.web_fallback
-            }
-          }, 2000)
-        } else {
-          // Try multiple methods for other apps
-          tryUniversalLink(linkData.ios_url)
-          setTimeout(() => {
-            // Fallback to App Store or web
-            if (linkData.ios_appstore_url) {
-              window.location.href = linkData.ios_appstore_url
-            } else {
-              window.location.href = linkData.web_fallback
-            }
+            window.location.href = linkData.web_fallback
           }, 500)
         }
-      } else if (linkData.ios_appstore_url) {
-        window.location.href = linkData.ios_appstore_url
-      } else {
-        window.location.href = linkData.web_fallback
+        return
       }
-    } else if (isAndroid) {
-      // Try Android deep link first
-      if (linkData.android_url) {
-        // Try deep link with multiple methods
-        tryDeepLink(linkData.android_url)
-        setTimeout(() => {
-          // Fallback to web
+
+      if (isIOS) {
+        // Try iOS deep link first
+        if (linkData.ios_url) {
+          // For LinkedIn, Universal Links (https://) work better
+          if (linkData.ios_url.startsWith('https://')) {
+            // LinkedIn Universal Link - will open app if installed
+            window.location.href = linkData.ios_url
+            // Fallback after delay if app doesn't open
+            setTimeout(() => {
+              if (linkData.ios_appstore_url) {
+                window.location.href = linkData.ios_appstore_url
+              } else {
+                window.location.href = linkData.web_fallback
+              }
+            }, 2000)
+          } else {
+            // Try multiple methods for other apps
+            tryUniversalLink(linkData.ios_url)
+            setTimeout(() => {
+              // Fallback to App Store or web
+              if (linkData.ios_appstore_url) {
+                window.location.href = linkData.ios_appstore_url
+              } else {
+                window.location.href = linkData.web_fallback
+              }
+            }, 500)
+          }
+        } else if (linkData.ios_appstore_url) {
+          window.location.href = linkData.ios_appstore_url
+        } else {
           window.location.href = linkData.web_fallback
-        }, 1000)
+        }
+      } else if (isAndroid) {
+        // Try Android deep link first
+        if (linkData.android_url) {
+          // Try deep link with multiple methods
+          tryDeepLink(linkData.android_url)
+          setTimeout(() => {
+            // Fallback to web
+            window.location.href = linkData.web_fallback
+          }, 1000)
+        } else {
+          window.location.href = linkData.web_fallback
+        }
       } else {
+        // Desktop: Use web fallback
         window.location.href = linkData.web_fallback
       }
-    } else {
-      // Desktop: Use web fallback
-      window.location.href = linkData.web_fallback
+    } catch (error) {
+      console.error('Redirect error:', error)
+      // Fallback to web URL on any error
+      if (linkData?.web_fallback) {
+        window.location.href = linkData.web_fallback
+      }
     }
   }, [linkData])
 
@@ -166,10 +196,16 @@ export default function SmartRedirectPage() {
 
   if (!linkData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Link Not Found</h1>
-          <p className="text-gray-600">The link you&apos;re looking for doesn&apos;t exist.</p>
+          <p className="text-gray-600 mb-4">The link you&apos;re looking for doesn&apos;t exist.</p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            Go Home
+          </a>
         </div>
       </div>
     )
@@ -212,10 +248,24 @@ export default function SmartRedirectPage() {
           
           <a
             href={linkData.web_fallback}
+            target="_blank"
+            rel="noopener noreferrer"
             className="block text-sm text-indigo-600 hover:text-indigo-700"
           >
             Continue to website instead
           </a>
+          
+          {/* Direct link button for Instagram browser compatibility */}
+          {linkData.web_fallback && (
+            <a
+              href={linkData.web_fallback}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+            >
+              Open in Browser
+            </a>
+          )}
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200">
