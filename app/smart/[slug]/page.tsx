@@ -10,6 +10,7 @@ export default function SmartRedirectPage() {
   const [linkData, setLinkData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [openingInChrome, setOpeningInChrome] = useState(false)
+  const [needsUserClick, setNeedsUserClick] = useState(false)
 
   useEffect(() => {
     // Fetch link data with error handling for Instagram browser
@@ -251,6 +252,7 @@ export default function SmartRedirectPage() {
       // For iOS custom schemes, DO NOT auto-redirect
       // iOS blocks programmatic redirects to custom schemes without user interaction
       // User must click the button
+      setNeedsUserClick(true)
       // Just start the countdown, but don't auto-redirect
     } else {
       // For Universal Links or Android, try immediate redirect
@@ -438,15 +440,17 @@ export default function SmartRedirectPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {openingInChrome ? 'Opening in Browser' : (linkData.title || 'Opening App...')}
-          </h1>
-          <p className="text-gray-600">
-            {openingInChrome 
-              ? 'Opening link in Chrome browser...'
-              : `Redirecting in ${countdown} second${countdown !== 1 ? 's' : ''}...`
-            }
-          </p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                {openingInChrome ? 'Opening in Browser' : (linkData.title || 'Opening App...')}
+              </h1>
+              <p className="text-gray-600">
+                {openingInChrome 
+                  ? 'Opening link in Chrome browser...'
+                  : needsUserClick
+                  ? 'Tap the button below to open the app'
+                  : `Redirecting in ${countdown} second${countdown !== 1 ? 's' : ''}...`
+                }
+              </p>
         </div>
 
         <div className="space-y-4">
