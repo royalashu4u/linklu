@@ -226,12 +226,24 @@ export default function SmartRedirectPage() {
             const isChrome = userAgent.includes('chrome') && !isInAppBrowser
             const isLinkedIn = linkData.web_fallback?.includes('linkedin.com')
             
-            // For Chrome on Android with LinkedIn, use Universal Link (iOS URL)
-            // Universal Links work on Android too (App Links) and don't redirect to Play Store
-            // linkedinmobileapp.com redirects to Play Store in Chrome
-            if (isChrome && isLinkedIn && linkData.ios_url) {
-              // Use the iOS Universal Link - it works on Android Chrome too
-              window.location.href = linkData.ios_url
+            // For Chrome on Android with LinkedIn, use Intent URL (proper way for Chrome)
+            // Intent URLs work in Chrome and open the app if installed
+            // S.browser_fallback_url prevents Play Store redirect, falls back to web
+            if (isChrome && isLinkedIn) {
+              // Extract path from voyager:// URL
+              const path = linkData.android_url.replace('voyager://', '')
+              
+              // Create Intent URL with web fallback (not Play Store)
+              const intentUrl = createIntentUrl(
+                'voyager',
+                linkData.android_url,
+                'com.linkedin.android',
+                linkData.android_playstore_url || 'https://play.google.com/store/apps/details?id=com.linkedin.android',
+                linkData.web_fallback
+              )
+              
+              // Try Intent URL (works in Chrome)
+              window.location.href = intentUrl
               
               // Fallback to web after delay if app doesn't open
               setTimeout(() => {
@@ -287,7 +299,35 @@ export default function SmartRedirectPage() {
             return
           }
           
-          // Try deep link with multiple methods (for other platforms)
+          // For Chrome on Android, try Intent URLs for known platforms
+          const userAgent = navigator.userAgent.toLowerCase()
+          const isInstagram = userAgent.includes('instagram')
+          const isFacebook = userAgent.includes('fban') || userAgent.includes('fbav') || userAgent.includes('fbsv')
+          const isWhatsApp = userAgent.includes('whatsapp')
+          const isLinkedInApp = userAgent.includes('linkedinapp')
+          const isTwitter = userAgent.includes('twitter') || userAgent.includes('tweetie')
+          const isTelegram = userAgent.includes('telegram')
+          const isInAppBrowser = isInstagram || isFacebook || isWhatsApp || isLinkedInApp || isTwitter || isTelegram
+          const isChrome = userAgent.includes('chrome') && !isInAppBrowser
+          
+          // For YouTube in Chrome, use Intent URL
+          if (isChrome && linkData.android_url.startsWith('vnd.youtube://')) {
+            const intentUrl = createIntentUrl(
+              'vnd.youtube',
+              linkData.android_url,
+              'com.google.android.youtube',
+              linkData.android_playstore_url || 'https://play.google.com/store/apps/details?id=com.google.android.youtube',
+              linkData.web_fallback
+            )
+            window.location.href = intentUrl
+            setTimeout(() => {
+              window.location.href = linkData.web_fallback
+            }, 2000)
+            return
+          }
+          
+          // Try deep link with multiple methods (for other platforms and in-app browsers)
+          // This preserves existing working code for in-app browsers
           tryDeepLink(linkData.android_url)
           setTimeout(() => {
             // Fallback to web
@@ -379,6 +419,16 @@ export default function SmartRedirectPage() {
       // If no user interaction, try anyway (might work for Universal Links)
       window.location.replace(url)
     }
+  }
+
+  // Helper function to create Intent URL for Chrome on Android
+  // Intent URLs are the proper way to open apps from Chrome
+  const createIntentUrl = (scheme: string, path: string, packageName: string, playStoreUrl: string, webFallback: string): string => {
+    // Remove scheme from path if present
+    const cleanPath = path.replace(`${scheme}://`, '')
+    // Create Intent URL with web fallback (prevents Play Store redirect)
+    // S.browser_fallback_url is used if app is not installed
+    return `intent://${cleanPath}#Intent;scheme=${scheme};package=${packageName};S.browser_fallback_url=${encodeURIComponent(webFallback)};end`
   }
 
   const tryDeepLink = (url: string) => {
