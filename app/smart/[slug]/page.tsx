@@ -93,7 +93,7 @@ export default function SmartRedirectPage() {
     }
   }
 
-  const attemptRedirect = useCallback(() => {
+  const attemptRedirect = useCallback((isUserInteraction: boolean = false) => {
     if (!linkData) return
 
     try {
@@ -129,7 +129,7 @@ export default function SmartRedirectPage() {
       if (isInstagram) {
         if (isIOS && linkData.ios_url) {
           // Try iOS deep link
-          tryUniversalLink(linkData.ios_url)
+          tryUniversalLink(linkData.ios_url, isUserInteraction)
           setTimeout(() => {
             window.location.href = linkData.web_fallback
           }, 1000)
@@ -155,7 +155,11 @@ export default function SmartRedirectPage() {
         if (linkData.ios_url) {
           // For LinkedIn mobile app page, redirect directly (it handles device detection)
           if (linkData.ios_url.includes('linkedinmobileapp.com')) {
-            window.location.href = linkData.ios_url
+            if (isUserInteraction) {
+              window.location.href = linkData.ios_url
+            } else {
+              window.location.replace(linkData.ios_url)
+            }
             return
           }
           
@@ -163,15 +167,11 @@ export default function SmartRedirectPage() {
           // LinkedIn uses Universal Links which work best on iOS
           if (linkData.ios_url.startsWith('https://')) {
             // Universal Link - will open app if installed
-            // iOS prefers location.replace for Universal Links
-            window.location.replace(linkData.ios_url)
-            
-            // Also try location.href as backup
-            setTimeout(() => {
-              if (document.hasFocus()) {
-                window.location.href = linkData.ios_url
-              }
-            }, 100)
+            if (isUserInteraction) {
+              window.location.href = linkData.ios_url
+            } else {
+              window.location.replace(linkData.ios_url)
+            }
             
             // Fallback after delay if app doesn't open (iOS needs more time)
             setTimeout(() => {
@@ -183,18 +183,24 @@ export default function SmartRedirectPage() {
             }, 3500)
           } else {
             // For custom schemes (youtube://, instagram://, etc.)
-            // iOS requires user interaction for custom schemes to work
-            // Use location.replace which works better on iOS
-            tryUniversalLink(linkData.ios_url)
-            // Give more time for app to open before falling back (iOS needs more time)
-            setTimeout(() => {
-              // Fallback to App Store or web
-              if (linkData.ios_appstore_url) {
-                window.location.replace(linkData.ios_appstore_url)
-              } else {
-                window.location.replace(linkData.web_fallback)
-              }
-            }, 2500)
+            // iOS REQUIRES user interaction for custom schemes - they won't work without it
+            if (isUserInteraction) {
+              // User clicked - use anchor tag method (most reliable)
+              tryUniversalLink(linkData.ios_url, true)
+              // Give more time for app to open before falling back
+              setTimeout(() => {
+                if (linkData.ios_appstore_url) {
+                  window.location.replace(linkData.ios_appstore_url)
+                } else {
+                  window.location.replace(linkData.web_fallback)
+                }
+              }, 2500)
+            } else {
+              // No user interaction - custom schemes won't work on iOS
+              // Just return, don't try to redirect
+              // The user must click the button
+              return
+            }
           }
         } else if (linkData.ios_appstore_url) {
           window.location.href = linkData.ios_appstore_url
@@ -235,27 +241,28 @@ export default function SmartRedirectPage() {
   useEffect(() => {
     if (!linkData || loading) return
 
-    // For iOS, we should wait a bit and ensure user interaction
-    // iOS requires user interaction for custom schemes to work reliably
     const userAgent = navigator.userAgent.toLowerCase()
     const isIOS = /iphone|ipad|ipod/.test(userAgent)
     
-    if (isIOS) {
-      // On iOS, wait a moment then try redirect
-      // This gives the page time to load and ensures better compatibility
-      setTimeout(() => {
-        attemptRedirect()
-      }, 300)
+    // Check if this is a custom scheme (not Universal Link)
+    const isCustomScheme = linkData.ios_url && !linkData.ios_url.startsWith('https://')
+    
+    if (isIOS && isCustomScheme) {
+      // For iOS custom schemes, DO NOT auto-redirect
+      // iOS blocks programmatic redirects to custom schemes without user interaction
+      // User must click the button
+      // Just start the countdown, but don't auto-redirect
     } else {
-      // For Android and desktop, try immediate redirect
-      attemptRedirect()
+      // For Universal Links or Android, try immediate redirect
+      attemptRedirect(false)
     }
 
-    // Also set up countdown as fallback
+    // Set up countdown as fallback
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          attemptRedirect()
+          // On countdown end, try redirect (might work for Universal Links)
+          attemptRedirect(false)
           return 0
         }
         return prev - 1
@@ -265,46 +272,40 @@ export default function SmartRedirectPage() {
     return () => clearInterval(timer)
   }, [linkData, loading, attemptRedirect])
 
-  const tryUniversalLink = (url: string) => {
+  const tryUniversalLink = (url: string, isUserInteraction: boolean = false) => {
     // For Universal Links (https://), they work directly and will open app if installed
     if (url.startsWith('https://')) {
       // iOS prefers location.replace for Universal Links
-      window.location.replace(url)
+      if (isUserInteraction) {
+        window.location.href = url
+      } else {
+        window.location.replace(url)
+      }
       return
     }
     
-    // For custom schemes on iOS, we need to use location.replace
-    // iOS requires user interaction, so this should be called from a user event
-    // Method 1: Use location.replace (works better on iOS than location.href)
-    window.location.replace(url)
-    
-    // Method 2: Also try location.href as fallback
-    setTimeout(() => {
-      if (document.hasFocus()) {
+    // For custom schemes on iOS, we MUST use user interaction
+    // iOS blocks programmatic redirects to custom schemes without user interaction
+    if (isUserInteraction) {
+      // Method 1: Create hidden anchor and click it (most reliable for iOS)
+      const link = document.createElement('a')
+      link.href = url
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link)
+        }
+      }, 100)
+      
+      // Method 2: Also try direct navigation as backup
+      setTimeout(() => {
         window.location.href = url
-      }
-    }, 100)
-    
-    // Method 3: Hidden iframe (for some browsers, but iOS Safari blocks this)
-    // Only use iframe for non-Safari browsers
-    try {
-      const userAgent = navigator.userAgent.toLowerCase()
-      const isSafari = /safari/.test(userAgent) && !/chrome|crios/.test(userAgent)
-      if (!isSafari) {
-        const iframe = document.createElement('iframe')
-        iframe.style.display = 'none'
-        iframe.style.width = '0'
-        iframe.style.height = '0'
-        iframe.src = url
-        document.body.appendChild(iframe)
-        setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe)
-          }
-        }, 1000)
-      }
-    } catch (e) {
-      // Ignore iframe errors
+      }, 50)
+    } else {
+      // If no user interaction, try anyway (might work for Universal Links)
+      window.location.replace(url)
     }
   }
 
@@ -452,8 +453,9 @@ export default function SmartRedirectPage() {
           <button
             onClick={(e) => {
               e.preventDefault()
-              // User interaction is required for iOS custom schemes to work
-              attemptRedirect()
+              // User interaction is REQUIRED for iOS custom schemes to work
+              // This is the only way custom schemes work on iOS
+              attemptRedirect(true)
             }}
             className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
           >
