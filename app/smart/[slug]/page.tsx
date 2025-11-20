@@ -211,12 +211,46 @@ export default function SmartRedirectPage() {
       } else if (isAndroid) {
         // Try Android deep link first
         if (linkData.android_url) {
-          // For LinkedIn, try voyager:// first (works in regular browsers)
+          // For LinkedIn, detect browser type
+          // Chrome on Android: Use linkedinmobileapp.com (voyager:// doesn't work in Chrome)
+          // In-app browsers: Try voyager:// first, then fallback to linkedinmobileapp.com
           if (linkData.android_url.startsWith('voyager://')) {
+            const userAgent = navigator.userAgent.toLowerCase()
+            const isInstagram = userAgent.includes('instagram')
+            const isFacebook = userAgent.includes('fban') || userAgent.includes('fbav') || userAgent.includes('fbsv')
+            const isWhatsApp = userAgent.includes('whatsapp')
+            const isLinkedInApp = userAgent.includes('linkedinapp')
+            const isTwitter = userAgent.includes('twitter') || userAgent.includes('tweetie')
+            const isTelegram = userAgent.includes('telegram')
+            const isInAppBrowser = isInstagram || isFacebook || isWhatsApp || isLinkedInApp || isTwitter || isTelegram
+            const isChrome = userAgent.includes('chrome') && !isInAppBrowser
+            const isLinkedIn = linkData.web_fallback?.includes('linkedin.com')
+            
+            // For Chrome on Android with LinkedIn, use linkedinmobileapp.com directly
+            // voyager:// doesn't work in Chrome and redirects to Play Store
+            if (isChrome && isLinkedIn) {
+              const webUrl = linkData.web_fallback
+              if (webUrl.includes('linkedin.com')) {
+                const mobileAppUrl = webUrl.replace('www.linkedin.com', 'www.linkedinmobileapp.com')
+                  .replace('linkedin.com', 'linkedinmobileapp.com')
+                
+                try {
+                  const urlObj = new URL(mobileAppUrl)
+                  urlObj.searchParams.set('appType', 'FLAGSHIP')
+                  urlObj.searchParams.set('trk', 'lite_protip_feed_details')
+                  window.location.href = urlObj.toString()
+                } catch {
+                  window.location.href = mobileAppUrl
+                }
+                return
+              }
+            }
+            
+            // For in-app browsers, try voyager:// first, then fallback to linkedinmobileapp.com
             // Try voyager:// with intent fallback (handled in tryDeepLink)
             tryDeepLink(linkData.android_url)
             
-            // After 1.5 seconds, if app didn't open, try linkedinmobileapp.com fallback
+            // After 1 second, if app didn't open, try linkedinmobileapp.com fallback
             // This preserves the working code for in-app browsers
             setTimeout(() => {
               // Check if we're still on the page (app didn't open)
@@ -243,12 +277,12 @@ export default function SmartRedirectPage() {
                   window.location.href = linkData.web_fallback
                 }
               }
-            }, 1500)
+            }, 1000)
             
             // Final fallback to web after longer delay
             setTimeout(() => {
               window.location.href = linkData.web_fallback
-            }, 3000)
+            }, 2500)
             return
           }
           
