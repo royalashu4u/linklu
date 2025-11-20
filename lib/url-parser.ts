@@ -311,12 +311,17 @@ export function generateDeepLinks(url: string): ParsedLink | null {
         iosDeepLink = cleanUrl
       }
       
-      // For Android, use LinkedIn's mobile app redirect page with the path
-      // This page will detect Android and redirect appropriately
-      androidDeepLink = mobileAppUrl
+      // For Android, use voyager:// custom scheme (works in regular browsers)
+      // We'll fallback to linkedinmobileapp.com in the redirect logic if needed
+      // Extract path for voyager:// scheme
+      const androidPath = linkedinPath + (linkedinQuery || '')
+      // Remove leading slash for voyager://
+      const cleanPath = androidPath.startsWith('/') ? androidPath.substring(1) : androidPath
+      // Use voyager:// scheme for Android (primary method)
+      androidDeepLink = `voyager://${cleanPath}`
       
-      // For iOS, we can also use the mobile app page as an alternative
-      // But Universal Links work better, so we keep them as primary
+      // Note: linkedinmobileapp.com (mobileAppUrl) is kept as fallback in redirect logic
+      // This ensures we don't break existing functionality in in-app browsers
       
       return {
         platform: 'linkedin',

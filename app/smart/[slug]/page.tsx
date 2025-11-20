@@ -211,13 +211,55 @@ export default function SmartRedirectPage() {
       } else if (isAndroid) {
         // Try Android deep link first
         if (linkData.android_url) {
-          // For LinkedIn mobile app page, redirect directly (it handles device detection and deep linking)
+          // For LinkedIn, try voyager:// first (works in regular browsers)
+          if (linkData.android_url.startsWith('voyager://')) {
+            // Try voyager:// with intent fallback (handled in tryDeepLink)
+            tryDeepLink(linkData.android_url)
+            
+            // After 1.5 seconds, if app didn't open, try linkedinmobileapp.com fallback
+            // This preserves the working code for in-app browsers
+            setTimeout(() => {
+              // Check if we're still on the page (app didn't open)
+              if (document.hasFocus() && document.visibilityState === 'visible') {
+                // Construct linkedinmobileapp.com URL as fallback
+                // This works in Android in-app browsers
+                const webUrl = linkData.web_fallback
+                if (webUrl.includes('linkedin.com')) {
+                  const mobileAppUrl = webUrl.replace('www.linkedin.com', 'www.linkedinmobileapp.com')
+                    .replace('linkedin.com', 'linkedinmobileapp.com')
+                  
+                  // Try to preserve the path and add mobile app params
+                  try {
+                    const urlObj = new URL(mobileAppUrl)
+                    urlObj.searchParams.set('appType', 'FLAGSHIP')
+                    urlObj.searchParams.set('trk', 'lite_protip_feed_details')
+                    window.location.href = urlObj.toString()
+                  } catch {
+                    // If URL parsing fails, use simple replace
+                    window.location.href = mobileAppUrl
+                  }
+                } else {
+                  // If we can't construct mobile app URL, fallback to web
+                  window.location.href = linkData.web_fallback
+                }
+              }
+            }, 1500)
+            
+            // Final fallback to web after longer delay
+            setTimeout(() => {
+              window.location.href = linkData.web_fallback
+            }, 3000)
+            return
+          }
+          
+          // For LinkedIn mobile app page (backward compatibility - old links)
+          // This preserves existing working code
           if (linkData.android_url.includes('linkedinmobileapp.com')) {
             window.location.href = linkData.android_url
             return
           }
           
-          // Try deep link with multiple methods
+          // Try deep link with multiple methods (for other platforms)
           tryDeepLink(linkData.android_url)
           setTimeout(() => {
             // Fallback to web
