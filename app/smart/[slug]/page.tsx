@@ -226,24 +226,18 @@ export default function SmartRedirectPage() {
             const isChrome = userAgent.includes('chrome') && !isInAppBrowser
             const isLinkedIn = linkData.web_fallback?.includes('linkedin.com')
             
-            // For Chrome on Android with LinkedIn, use linkedinmobileapp.com directly
-            // voyager:// doesn't work in Chrome and redirects to Play Store
-            if (isChrome && isLinkedIn) {
-              const webUrl = linkData.web_fallback
-              if (webUrl.includes('linkedin.com')) {
-                const mobileAppUrl = webUrl.replace('www.linkedin.com', 'www.linkedinmobileapp.com')
-                  .replace('linkedin.com', 'linkedinmobileapp.com')
-                
-                try {
-                  const urlObj = new URL(mobileAppUrl)
-                  urlObj.searchParams.set('appType', 'FLAGSHIP')
-                  urlObj.searchParams.set('trk', 'lite_protip_feed_details')
-                  window.location.href = urlObj.toString()
-                } catch {
-                  window.location.href = mobileAppUrl
-                }
-                return
-              }
+            // For Chrome on Android with LinkedIn, use Universal Link (iOS URL)
+            // Universal Links work on Android too (App Links) and don't redirect to Play Store
+            // linkedinmobileapp.com redirects to Play Store in Chrome
+            if (isChrome && isLinkedIn && linkData.ios_url) {
+              // Use the iOS Universal Link - it works on Android Chrome too
+              window.location.href = linkData.ios_url
+              
+              // Fallback to web after delay if app doesn't open
+              setTimeout(() => {
+                window.location.href = linkData.web_fallback
+              }, 2000)
+              return
             }
             
             // For in-app browsers, try voyager:// first, then fallback to linkedinmobileapp.com
