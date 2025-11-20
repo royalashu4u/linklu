@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 
 export default function SmartRedirectPage() {
@@ -11,6 +11,9 @@ export default function SmartRedirectPage() {
   const [loading, setLoading] = useState(true)
   const [openingInChrome, setOpeningInChrome] = useState(false)
   const [needsUserClick, setNeedsUserClick] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const countdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Fetch link data with error handling for Instagram browser
@@ -25,11 +28,13 @@ export default function SmartRedirectPage() {
           setLinkData(link)
         }
         setLoading(false)
+        // Trigger fade-in animation
+        setTimeout(() => setIsVisible(true), 50)
       })
       .catch((error) => {
         console.error('Error fetching link:', error)
         setLoading(false)
-        // Show error state
+        setTimeout(() => setIsVisible(true), 50)
       })
   }, [slug])
 
@@ -369,15 +374,19 @@ export default function SmartRedirectPage() {
       attemptRedirect(false)
     }
 
-    // Set up countdown as fallback
+    // Set up countdown as fallback with smooth progress
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           // On countdown end, try redirect (might work for Universal Links)
           attemptRedirect(false)
+          setProgress(100)
           return 0
         }
-        return prev - 1
+        const newCount = prev - 1
+        // Update progress bar
+        setProgress(((3 - newCount) / 3) * 100)
+        return newCount
       })
     }, 1000)
 
@@ -515,10 +524,28 @@ export default function SmartRedirectPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+        <div className="text-center animate-fade-in">
+          <div className="relative w-16 h-16 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-indigo-200"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+            <div className="absolute inset-2 rounded-full bg-indigo-50 flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-indigo-600 animate-pulse"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+          </div>
+          <p className="text-gray-600 font-medium animate-pulse">Loading...</p>
         </div>
       </div>
     )
@@ -526,13 +553,28 @@ export default function SmartRedirectPage() {
 
   if (!linkData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+        <div className={`max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center transform transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-8 h-8 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Link Not Found</h1>
-          <p className="text-gray-600 mb-4">The link you&apos;re looking for doesn&apos;t exist.</p>
+          <p className="text-gray-600 mb-6">The link you&apos;re looking for doesn&apos;t exist.</p>
           <a
             href="/"
-            className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
           >
             Go Home
           </a>
@@ -542,12 +584,24 @@ export default function SmartRedirectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+      <div className={`max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center transform transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+        {/* Progress bar */}
+        {!needsUserClick && !openingInChrome && countdown > 0 && (
+          <div className="mb-6">
+            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
-          <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className={`w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 transform transition-all duration-500 ${openingInChrome ? 'animate-pulse scale-110' : 'animate-bounce-subtle'}`}>
             <svg
-              className="w-8 h-8 text-indigo-600"
+              className={`w-8 h-8 text-indigo-600 transition-transform duration-300 ${openingInChrome ? 'animate-spin' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -560,17 +614,31 @@ export default function SmartRedirectPage() {
               />
             </svg>
           </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {openingInChrome ? 'Opening in Browser' : (linkData.title || 'Opening App...')}
-              </h1>
-              <p className="text-gray-600">
-                {openingInChrome 
-                  ? 'Opening link in Chrome browser...'
-                  : needsUserClick
-                  ? 'Tap the button below to open the app'
-                  : `Redirecting in ${countdown} second${countdown !== 1 ? 's' : ''}...`
-                }
-              </p>
+          
+          <h1 className="text-2xl font-bold text-gray-900 mb-2 transition-all duration-300">
+            {openingInChrome ? 'Opening in Browser' : (linkData.title || 'Opening App...')}
+          </h1>
+          
+          <p className="text-gray-600 transition-all duration-300 min-h-[1.5rem]">
+            {openingInChrome 
+              ? 'Opening link in Chrome browser...'
+              : needsUserClick
+              ? 'Tap the button below to open the app'
+              : (
+                <span className="inline-flex items-center gap-1">
+                  Redirecting in{' '}
+                  <span 
+                    ref={countdownRef}
+                    className="inline-block font-semibold text-indigo-600 min-w-[1.5rem] transform animate-number-pop"
+                    key={countdown}
+                  >
+                    {countdown}
+                  </span>
+                  {' '}second{countdown !== 1 ? 's' : ''}...
+                </span>
+              )
+            }
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -581,14 +649,29 @@ export default function SmartRedirectPage() {
               // This is the only way custom schemes work on iOS
               attemptRedirect(true)
             }}
-            className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="w-full px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 active:from-indigo-800 active:to-purple-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
-            Open Now
+            <span className="flex items-center justify-center gap-2">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
+              </svg>
+              Open Now
+            </span>
           </button>
           
           <a
             href={linkData.web_fallback}
-            className="block text-sm text-indigo-600 hover:text-indigo-700"
+            className="block text-sm text-indigo-600 hover:text-indigo-700 transition-colors duration-200 font-medium"
           >
             Continue to website instead
           </a>
@@ -597,7 +680,7 @@ export default function SmartRedirectPage() {
           {linkData.web_fallback && (
             <a
               href={linkData.web_fallback}
-              className="block mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+              className="block mt-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               Open in Browser
             </a>
@@ -605,7 +688,7 @@ export default function SmartRedirectPage() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 leading-relaxed">
             Having trouble? Make sure the app is installed, or continue to the website.
           </p>
         </div>
